@@ -4,12 +4,18 @@
  * enkel via de Admin SDK. Draai dit tegen het NIEUWE Firebase-project van
  * dit platform.
  *
- * Gebruik:
+ * Gebruik (aanbevolen -- de volledige inhoud van het gedownloade
+ * service-account-JSON-bestand, ongewijzigd geplakt):
+ *   FIREBASE_SERVICE_ACCOUNT_KEY='{"type":"service_account",...}' \
+ *     npx tsx scripts/setSysteembeheerder.ts jouw@email.be
+ *
+ * Of met de 3 losse velden apart:
  *   FIREBASE_PROJECT_ID=... FIREBASE_CLIENT_EMAIL=... FIREBASE_PRIVATE_KEY=... \
  *     npx tsx scripts/setSysteembeheerder.ts jouw@email.be
  */
-import { cert, initializeApp } from "firebase-admin/app";
+import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { getAdminCredential } from "../lib/adminCredential";
 
 async function main() {
   const email = process.argv[2];
@@ -18,15 +24,7 @@ async function main() {
     process.exit(1);
   }
 
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-  if (!projectId || !clientEmail || !privateKey) {
-    console.error("FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL en FIREBASE_PRIVATE_KEY zijn vereist.");
-    process.exit(1);
-  }
-
-  const app = initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
+  const app = initializeApp({ credential: getAdminCredential("FIREBASE_") });
   const auth = getAuth(app);
 
   const user = await auth.getUserByEmail(email);

@@ -9,10 +9,12 @@
  * naar het nieuwe project. Test dit eerst tegen een lege/staging-versie van
  * het nieuwe project voor je het tegen de definitieve database draait.
  *
- * Vereisten (env vars):
- *   BRON_PROJECT_ID, BRON_CLIENT_EMAIL, BRON_PRIVATE_KEY   (service-account van het OUDE project "Winkelsimpel")
+ * Vereisten (env vars) -- voor zowel BRON (het oude project "Winkelsimpel")
+ * als DOEL (het nieuwe project) telkens ofwel `<PREFIX>_SERVICE_ACCOUNT_KEY`
+ * (aanbevolen, zie lib/adminCredential.ts) ofwel de 3 losse velden:
+ *   BRON_SERVICE_ACCOUNT_KEY  of  BRON_PROJECT_ID, BRON_CLIENT_EMAIL, BRON_PRIVATE_KEY
  *   BRON_STORAGE_BUCKET                                     (bucket van het oude project)
- *   DOEL_PROJECT_ID, DOEL_CLIENT_EMAIL, DOEL_PRIVATE_KEY   (service-account van het NIEUWE project)
+ *   DOEL_SERVICE_ACCOUNT_KEY  of  DOEL_PROJECT_ID, DOEL_CLIENT_EMAIL, DOEL_PRIVATE_KEY
  *   DOEL_STORAGE_BUCKET                                     (bucket van het nieuwe project)
  *   GROEP_ID           doc-ID van de al aangemaakte Sint-Eduardus-groep in `groepen` (nieuw project)
  *   ORGANISATIE_ID     doc-ID van de organisatie waaronder scouting-brede kentekens/mijlpalen komen (optioneel)
@@ -20,9 +22,10 @@
  * Gebruik:
  *   npx tsx scripts/migrate.ts
  */
-import { cert, initializeApp } from "firebase-admin/app";
+import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
+import { getAdminCredential } from "../lib/adminCredential";
 
 const BRON_DATABASE_ID = "sinteduardusscouts4ever";
 const BRON_STORAGE_PREFIX = "vriendenboekje";
@@ -36,11 +39,7 @@ function vereist(naam: string): string {
 function initApp(prefix: "BRON" | "DOEL") {
   return initializeApp(
     {
-      credential: cert({
-        projectId: vereist(`${prefix}_PROJECT_ID`),
-        clientEmail: vereist(`${prefix}_CLIENT_EMAIL`),
-        privateKey: vereist(`${prefix}_PRIVATE_KEY`).replace(/\\n/g, "\n"),
-      }),
+      credential: getAdminCredential(`${prefix}_`),
       storageBucket: vereist(`${prefix}_STORAGE_BUCKET`),
     },
     prefix

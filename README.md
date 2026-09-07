@@ -47,10 +47,13 @@ single-tenant app -- zo blijft die bestaande site volledig onaangeroerd.
 5. Firebase-config kopiëren naar `.env.local` (Project Settings →
    Algemeen → "Je apps" → Web-app toevoegen → SDK-configuratie).
 6. Een service-account-sleutel aanmaken (Project Settings → Service
-   accounts → "Generate new private key") voor de Admin SDK-variabelen
-   (`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`)
-   -- nodig voor het migratiescript en het systeembeheerder-scriptje.
-   **Nooit committen.**
+   accounts → "Generate new private key") -- downloadt een JSON-bestand.
+   Nodig voor het migratiescript en het systeembeheerder-scriptje.
+   **Nooit committen.** Bewaar de **volledige, ongewijzigde inhoud** van
+   dat bestand: dat is de waarde die je overal hieronder als
+   `FIREBASE_SERVICE_ACCOUNT_KEY` gebruikt (zie ook `.env.example` en
+   `lib/adminCredential.ts`) -- veel robuuster dan de private key apart
+   te knippen/plakken, wat makkelijk fout gaat door de multi-line opmaak.
 7. Rules deployen met de [Firebase CLI](https://firebase.google.com/docs/cli):
    ```
    firebase deploy --only firestore:rules,firestore:indexes,storage --project <jouw-project-id>
@@ -62,17 +65,17 @@ single-tenant app -- zo blijft die bestaande site volledig onaangeroerd.
    **Lokaal / via een terminal** (Cloud Shell kan ook, zonder iets lokaal
    te installeren):
    ```
-   FIREBASE_PROJECT_ID=... FIREBASE_CLIENT_EMAIL=... FIREBASE_PRIVATE_KEY=... \
+   FIREBASE_SERVICE_ACCOUNT_KEY='<volledige inhoud van het JSON-bestand>' \
      npm run set-systeembeheerder -- jouw@email.be
    ```
 
    **Via de GitHub-website** (geen terminal nodig) -- eenmalig instellen,
    nadien telkens met één klik te herhalen:
-   1. Zet de drie Admin SDK-variabelen als **repo-secrets**: GitHub →
-      dit repo → Settings → Secrets and variables → Actions → "New
-      repository secret" voor elk van `FIREBASE_PROJECT_ID`,
-      `FIREBASE_CLIENT_EMAIL` en `FIREBASE_PRIVATE_KEY` (dezelfde
-      waarden als hierboven, uit de service-account-sleutel).
+   1. Zet **één repo-secret**: GitHub → dit repo → Settings → Secrets
+      and variables → Actions → "New repository secret" → naam
+      `FIREBASE_SERVICE_ACCOUNT_KEY`, waarde = de volledige inhoud van
+      het gedownloade JSON-bestand (open het bestand, selecteer alles,
+      plak het in het secret-tekstvak -- niets aanpassen).
    2. Ga naar het tabblad **Actions** → workflow **"Set
       systeembeheerder"** → **"Run workflow"** → vul het e-mailadres in
       → **Run workflow**. Zie
