@@ -78,7 +78,8 @@ export default function ToevoegenPage() {
         });
       }
       setVerzonden(true);
-    } catch {
+    } catch (err) {
+      console.error("Versturen van vriendenboekje-formulier mislukt:", err);
       setFoutmelding("Er ging iets mis bij het versturen. Probeer het straks nog eens.");
     } finally {
       setVersturen(false);

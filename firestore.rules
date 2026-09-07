@@ -79,7 +79,12 @@ service cloud.firestore {
     match /entries/{entryId} {
       allow read: if resource.data.status == 'published' || resource.data.status == 'stub';
 
-      allow read, write: if isBeheerderVan(resource.data.groepId);
+      allow read, update, delete: if isBeheerderVan(resource.data.groepId);
+      // Apart van de regel hierboven: `resource` bestaat nog niet bij een
+      // create, dus die regel kan een NIEUW document niet dekken -- vandaar
+      // deze eigen create-regel op `request.resource.data.groepId`, zoals
+      // ook bij photos/locations/dishes/... hieronder.
+      allow create: if isBeheerderVan(request.resource.data.groepId);
 
       // Publiek aanmeldformulier (/toevoegen): meteen zichtbaar, maar
       // `goedgekeurd: false` tot de beheerder het nakeek.
@@ -190,6 +195,7 @@ service cloud.firestore {
     match /milestones/{milestoneId} {
       allow read: if resource.data.status == 'published' || isBeheerderVan(resource.data.groepId);
       allow write: if isBeheerderVan(resource.data.groepId);
+      allow create: if isBeheerderVan(request.resource.data.groepId);
 
       allow create: if request.auth == null
         && request.resource.data.groepId is string

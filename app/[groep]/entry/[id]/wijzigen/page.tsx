@@ -74,7 +74,8 @@ export default function WijzigenPage(props: PageProps<"/[groep]/entry/[id]/wijzi
         omschrijving: `"${entry?.naam}" — wacht op goedkeuring door de beheerder.`,
       });
       setVerzonden(true);
-    } catch {
+    } catch (err) {
+      console.error("Versturen van wijzigingsvoorstel mislukt:", err);
       setFoutmelding("Er ging iets mis bij het versturen. Probeer het straks nog eens.");
     } finally {
       setVersturen(false);
