@@ -9,6 +9,7 @@ import GroepWisselaar from "./GroepWisselaar";
 const SECTIES = [
   { href: "/beheer", label: "Dashboard", exact: true },
   { href: "/beheer/vriendenboek", label: "Vriendenboek" },
+  { href: "/beheer/tijdlijn", label: "Tijdlijn" },
   { href: "/beheer/instellingen", label: "Instellingen" },
 ];
 

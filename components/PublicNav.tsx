@@ -7,11 +7,12 @@ import { useGroep } from "@/lib/groepContext";
 import { colors, fonts, radius } from "@/lib/theme";
 import { clearGroepCookie } from "@/lib/groepCookie";
 
-// Tijdlijn en Foto's komen pas in een latere fase -- pas hier toevoegen
-// zodra die pagina's effectief bestaan, anders leidt dit tot 404's
-// (o.a. via Next.js' achtergrond-prefetch van elke zichtbare <Link>).
+// Foto's komt pas in een latere fase -- pas hier toevoegen zodra die
+// pagina effectief bestaat, anders leidt dit tot 404's (o.a. via Next.js'
+// achtergrond-prefetch van elke zichtbare <Link>).
 const LINKS = [
   { href: "/vriendenboekje", label: "Vriendenboekje", icon: "📖" },
+  { href: "/tijdlijn", label: "Tijdlijn", icon: "⏳" },
   { href: "/over-de-groep", label: "Over de groep", icon: "ℹ️" },
 ];
 
