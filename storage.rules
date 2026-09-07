@@ -1,0 +1,44 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Organisatie-brede bestanden (kentekens, scouting-mijlpalen): publiek
+    // leesbaar, enkel de systeembeheerder schrijft. De systeembeheerder-rol
+    // is enkel via een custom claim herkenbaar (net als in firestore.rules).
+    match /organisaties/{organisatieId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.systeembeheerder == true;
+    }
+
+    // Groep-specifieke bestanden (scans, fotos, mijlpalen): publiek
+    // leesbaar. Schrijven (behalve de publieke foto-upload hieronder) is
+    // beheerder-only -- de fijnmazige "is dit precies de beheerder van
+    // déze groep"-controle gebeurt in de Firestore-rules (het bijhorende
+    // document), Storage-rules kunnen geen `lidmaatschappen`-opzoeking op
+    // groepId doen zonder dat groepId al in het pad zelf zit. Omdat
+    // {groepId} hier wél een pad-segment is, kan dat via `firestore.get()`.
+    match /groepen/{groepId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && (
+          request.auth.token.systeembeheerder == true
+          || firestore.exists(/databases/(default)/documents/lidmaatschappen/$(request.auth.uid + '_' + groepId))
+        );
+    }
+
+    // Foto's (/beheer/fotos en /foto-toevoegen): bezoekers mogen ZONDER
+    // login rechtstreeks een nieuwe foto uploaden (nodig voor de publieke
+    // inzending), maar enkel als het een afbeelding is onder de 8MB. De
+    // Firestore-kant (status 'pending' tot goedkeuring) is de eigenlijke
+    // inhoudelijke controle.
+    match /groepen/{groepId}/fotos/{fileName} {
+      allow read: if true;
+      allow create: if request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow update, delete: if request.auth != null
+        && (
+          request.auth.token.systeembeheerder == true
+          || firestore.exists(/databases/(default)/documents/lidmaatschappen/$(request.auth.uid + '_' + groepId))
+        );
+    }
+  }
+}

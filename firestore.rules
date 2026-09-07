@@ -1,0 +1,336 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -----------------------------------------------------------------
+    // Rolcontrole
+    // -----------------------------------------------------------------
+    // Systeembeheerder: één simpele custom claim (er zijn er maar een
+    // handvol). Groepsbeheerder: via een document in `lidmaatschappen`,
+    // omdat één gebruiker beheerder kan zijn van meerdere groepen -- dat
+    // past slecht in een klein, statisch custom-claims-object.
+    function isSysteembeheerder() {
+      return request.auth != null && request.auth.token.systeembeheerder == true;
+    }
+
+    function isGroepsbeheerderVan(groepId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/lidmaatschappen/$(request.auth.uid + '_' + groepId));
+    }
+
+    function isBeheerderVan(groepId) {
+      return isGroepsbeheerderVan(groepId) || isSysteembeheerder();
+    }
+
+    function groepIdOngewijzigd() {
+      return request.resource.data.groepId == resource.data.groepId;
+    }
+
+    // -----------------------------------------------------------------
+    // groepen & lidmaatschappen
+    // -----------------------------------------------------------------
+    match /groepen/{groepId} {
+      // Publiek leesbaar (landingspagina/groepskeuze, [groep]-layout).
+      allow read: if true;
+      // Aanmaken van een nieuwe groep: enkel de systeembeheerder (fase 8,
+      // zelfregistratie/onboarding, voegt hier later een aparte, sterk
+      // begrensde publieke create-regel aan toe -- bewust nog niet nu).
+      allow create, delete: if isSysteembeheerder();
+      // De eigen groepsinstellingen (naam, logo, contact, ...) mag de
+      // groepsbeheerder zelf aanpassen; alleen de systeembeheerder mag
+      // ook status/organisatieId wijzigen buiten de instellingenpagina om.
+      allow update: if isBeheerderVan(groepId);
+    }
+
+    match /lidmaatschappen/{lidmaatschapId} {
+      // Een gebruiker mag zijn eigen lidmaatschappen lezen (groepswisselaar);
+      // de systeembeheerder mag alles lezen/beheren.
+      allow read: if request.auth != null
+        && (resource.data.userId == request.auth.uid || isSysteembeheerder());
+      allow write: if isSysteembeheerder();
+    }
+
+    // -----------------------------------------------------------------
+    // organisaties + subcollecties (kentekens, scouting-mijlpalen, sjabloon)
+    // -----------------------------------------------------------------
+    match /organisaties/{organisatieId} {
+      allow read: if true;
+      allow write: if isSysteembeheerder();
+
+      match /kentekens/{kentekenId} {
+        allow read: if true;
+        allow write: if isSysteembeheerder();
+      }
+
+      match /mijlpalen/{mijlpaalId} {
+        allow read: if resource.data.status == 'published' || isSysteembeheerder();
+        allow write: if isSysteembeheerder();
+      }
+
+      match /takkenSjabloon/{takId} {
+        allow read: if true;
+        allow write: if isSysteembeheerder();
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // entries (vriendenboekje-fiches)
+    // -----------------------------------------------------------------
+    match /entries/{entryId} {
+      allow read: if resource.data.status == 'published' || resource.data.status == 'stub';
+
+      allow read, write: if isBeheerderVan(resource.data.groepId);
+
+      // Publiek aanmeldformulier (/toevoegen): meteen zichtbaar, maar
+      // `goedgekeurd: false` tot de beheerder het nakeek.
+      allow create: if request.auth == null
+        && request.resource.data.groepId is string
+        && exists(/databases/$(database)/documents/groepen/$(request.resource.data.groepId))
+        && request.resource.data.status == 'published'
+        && request.resource.data.goedgekeurd == false
+        && request.resource.data.scanUrl == null
+        && request.resource.data.scanPath == null
+        && request.resource.data.naam is string
+        && request.resource.data.naam.size() < 200
+        && request.resource.data.geboortejaar.size() < 20
+        && request.resource.data.totemnaam.size() < 100
+        && request.resource.data.periode.size() < 100
+        && request.resource.data.leuksteActiviteit.size() < 500
+        && request.resource.data.besteKampplaats.size() < 10
+        && request.resource.data.lekkersteEten.size() < 10;
+
+      // "Stub"-oudlid: automatisch aangemaakt bij het taggen van een naam
+      // zonder eigen fiche.
+      allow create: if request.auth == null
+        && request.resource.data.groepId is string
+        && exists(/databases/$(database)/documents/groepen/$(request.resource.data.groepId))
+        && request.resource.data.status == 'stub'
+        && request.resource.data.naam is string
+        && request.resource.data.naam.size() > 0
+        && request.resource.data.naam.size() < 200
+        && request.resource.data.scanUrl == null
+        && request.resource.data.scanPath == null;
+
+      // "Ben jij misschien X?" -- stub wordt bijgewerkt i.p.v. een nieuwe,
+      // dubbele entry.
+      allow update: if request.auth == null
+        && groepIdOngewijzigd()
+        && resource.data.status == 'stub'
+        && request.resource.data.status == 'draft'
+        && request.resource.data.koppelingBevestigd == false
+        && request.resource.data.scanUrl == null
+        && request.resource.data.scanPath == null
+        && request.resource.data.naam is string
+        && request.resource.data.naam.size() < 200
+        && request.resource.data.geboortejaar.size() < 20
+        && request.resource.data.totemnaam.size() < 100
+        && request.resource.data.periode.size() < 100
+        && request.resource.data.leuksteActiviteit.size() < 500
+        && request.resource.data.besteKampplaats.size() < 10
+        && request.resource.data.lekkersteEten.size() < 10;
+    }
+
+    // -----------------------------------------------------------------
+    // locations & extraLocations (kampplaatsen, apart per groep)
+    // -----------------------------------------------------------------
+    match /locations/{locationId} {
+      allow read: if true;
+      allow write: if isBeheerderVan(resource.data.groepId);
+      allow create: if isBeheerderVan(request.resource.data.groepId);
+    }
+
+    match /extraLocations/{locationId} {
+      allow read: if resource.data.status == 'published' || isBeheerderVan(resource.data.groepId);
+      allow write: if isBeheerderVan(resource.data.groepId);
+
+      allow create: if request.auth == null
+        && request.resource.data.groepId is string
+        && exists(/databases/$(database)/documents/groepen/$(request.resource.data.groepId))
+        && request.resource.data.status == 'pending'
+        && request.resource.data.naam is string
+        && request.resource.data.naam.size() > 0
+        && request.resource.data.naam.size() < 200
+        && request.resource.data.beschrijving is string
+        && request.resource.data.beschrijving.size() < 1000
+        && request.resource.data.contactEmail is string
+        && request.resource.data.contactEmail.size() < 200;
+    }
+
+    // -----------------------------------------------------------------
+    // dishes, links, scoutTakken, photoTags (groep-specifiek, beheerbaar)
+    // -----------------------------------------------------------------
+    match /dishes/{dishId} {
+      allow read: if true;
+      allow write: if isBeheerderVan(resource.data.groepId);
+      allow create: if isBeheerderVan(request.resource.data.groepId);
+    }
+
+    match /links/{linkId} {
+      allow read: if true;
+      allow write: if isBeheerderVan(resource.data.groepId);
+      allow create: if isBeheerderVan(request.resource.data.groepId);
+    }
+
+    match /scoutTakken/{takId} {
+      allow read: if true;
+      allow write: if isBeheerderVan(resource.data.groepId);
+      allow create: if isBeheerderVan(request.resource.data.groepId);
+    }
+
+    match /photoTags/{tagId} {
+      allow read: if true;
+      allow write: if isBeheerderVan(resource.data.groepId);
+      allow create: if isBeheerderVan(request.resource.data.groepId);
+    }
+
+    // -----------------------------------------------------------------
+    // milestones (groep-mijlpalen; scouting-brede mijlpalen zitten onder
+    // organisaties/{id}/mijlpalen hierboven)
+    // -----------------------------------------------------------------
+    match /milestones/{milestoneId} {
+      allow read: if resource.data.status == 'published' || isBeheerderVan(resource.data.groepId);
+      allow write: if isBeheerderVan(resource.data.groepId);
+
+      allow create: if request.auth == null
+        && request.resource.data.groepId is string
+        && exists(/databases/$(database)/documents/groepen/$(request.resource.data.groepId))
+        && request.resource.data.status == 'pending'
+        && request.resource.data.afbeeldingUrl == null
+        && request.resource.data.afbeeldingPath == null
+        && request.resource.data.jaar is int
+        && request.resource.data.jaar > 1900
+        && request.resource.data.jaar < 2200
+        && request.resource.data.type == 'groep'
+        && request.resource.data.titel is string
+        && request.resource.data.titel.size() < 200
+        && request.resource.data.beschrijving is string
+        && request.resource.data.beschrijving.size() < 1000
+        && request.resource.data.contactEmail is string
+        && request.resource.data.contactEmail.size() < 200;
+    }
+
+    // -----------------------------------------------------------------
+    // contactBerichten, activiteiten, statistieken (groep-specifiek, enkel
+    // beheerder leest, publiek mag enkel aanmaken/ophogen)
+    // -----------------------------------------------------------------
+    match /contactBerichten/{berichtId} {
+      allow read, update, delete: if isBeheerderVan(resource.data.groepId);
+      allow create: if request.resource.data.groepId is string
+        && exists(/databases/$(database)/documents/groepen/$(request.resource.data.groepId))
+        && request.resource.data.naam is string
+        && request.resource.data.naam.size() < 200
+        && request.resource.data.email is string
+        && request.resource.data.email.size() < 200
+        && request.resource.data.groep is string
+        && request.resource.data.groep.size() < 200
+        && request.resource.data.bericht is string
+        && request.resource.data.bericht.size() > 0
+        && request.resource.data.bericht.size() < 2000
+        && request.resource.data.gelezen == false;
+    }
+
+    match /wijzigingsVoorstellen/{voorstelId} {
+      allow read, write: if isBeheerderVan(resource.data.groepId);
+      allow create: if request.resource.data.groepId is string
+        && exists(/databases/$(database)/documents/groepen/$(request.resource.data.groepId))
+        && request.resource.data.entryId is string
+        && exists(/databases/$(database)/documents/entries/$(request.resource.data.entryId))
+        && get(/databases/$(database)/documents/entries/$(request.resource.data.entryId)).data.status == 'published'
+        && get(/databases/$(database)/documents/entries/$(request.resource.data.entryId)).data.groepId == request.resource.data.groepId
+        && request.resource.data.status == 'pending'
+        && request.resource.data.email is string
+        && request.resource.data.email.size() > 0
+        && request.resource.data.email.size() < 200
+        && request.resource.data.naam is string
+        && request.resource.data.naam.size() < 200
+        && request.resource.data.geboortejaar.size() < 20
+        && request.resource.data.totemnaam.size() < 100
+        && request.resource.data.periode.size() < 100
+        && request.resource.data.leuksteActiviteit.size() < 500
+        && request.resource.data.besteKampplaats.size() < 10
+        && request.resource.data.lekkersteEten.size() < 10;
+    }
+
+    match /activiteiten/{activiteitId} {
+      allow read, delete: if isBeheerderVan(resource.data.groepId);
+      allow create: if request.resource.data.groepId is string
+        && exists(/databases/$(database)/documents/groepen/$(request.resource.data.groepId))
+        && request.resource.data.type is string
+        && request.resource.data.type.size() < 50
+        && request.resource.data.actie is string
+        && request.resource.data.actie.size() < 200
+        && request.resource.data.omschrijving is string
+        && request.resource.data.omschrijving.size() < 300;
+    }
+
+    match /statistieken/{statId} {
+      allow read: if isBeheerderVan(resource.data.groepId);
+      allow write: if request.resource.data.keys().hasOnly(['groepId', 'dag', 'pad', 'aantal'])
+        && request.resource.data.groepId is string
+        && request.resource.data.dag is string
+        && request.resource.data.pad is string
+        && request.resource.data.pad.size() < 200;
+    }
+
+    // -----------------------------------------------------------------
+    // leidingsploegen (volledig crowdsourced binnen een groep)
+    // -----------------------------------------------------------------
+    match /leidingsploegen/{leidingId} {
+      allow read: if true;
+      allow create, update: if request.resource.data.groepId is string
+        && exists(/databases/$(database)/documents/groepen/$(request.resource.data.groepId))
+        && request.resource.data.takId is string
+        && request.resource.data.werkingsjaarStart is int
+        && request.resource.data.werkingsjaarStart > 1900
+        && request.resource.data.werkingsjaarStart < 2200
+        && request.resource.data.leden is list
+        && request.resource.data.leden.size() < 30;
+      allow delete: if isBeheerderVan(resource.data.groepId);
+    }
+
+    // -----------------------------------------------------------------
+    // photos (gepubliceerd publiek leesbaar/bewerkbaar-voor-tags, rest beheerder)
+    // -----------------------------------------------------------------
+    match /photos/{photoId} {
+      allow read: if resource.data.status == 'published' || isBeheerderVan(resource.data.groepId);
+
+      allow write: if isBeheerderVan(resource.data.groepId);
+      allow create: if isBeheerderVan(request.resource.data.groepId);
+
+      // Publieke NIEUWE foto: altijd 'pending'.
+      allow create: if request.auth == null
+        && request.resource.data.groepId is string
+        && exists(/databases/$(database)/documents/groepen/$(request.resource.data.groepId))
+        && request.resource.data.status == 'pending'
+        && request.resource.data.afbeeldingUrl is string
+        && request.resource.data.afbeeldingUrl.size() > 0
+        && request.resource.data.afbeeldingUrl.size() < 500
+        && request.resource.data.afbeeldingPath is string
+        && request.resource.data.contactEmail is string
+        && request.resource.data.contactEmail.size() < 200;
+
+      // Publieke BEWERKING van een reeds gepubliceerde foto: enkel tags +
+      // verwijderverzoek mogen wijzigen; groepId/afbeelding-eigenaarschap/
+      // contactEmail/createdAt blijven ongewijzigd.
+      allow update: if request.auth == null
+        && groepIdOngewijzigd()
+        && resource.data.status == 'published'
+        && request.resource.data.status == 'published'
+        && request.resource.data.afbeeldingUrl is string
+        && request.resource.data.afbeeldingUrl.size() < 500
+        && request.resource.data.afbeeldingPath is string
+        && request.resource.data.afbeeldingPath.matches('groepen/' + resource.data.groepId + '/fotos/.*')
+        && request.resource.data.contactEmail == resource.data.contactEmail
+        && request.resource.data.createdAt == resource.data.createdAt
+        && (!('jaar' in request.resource.data) || request.resource.data.jaar == null || request.resource.data.jaar is int)
+        && (!('decennium' in request.resource.data) || request.resource.data.decennium == null || request.resource.data.decennium is int)
+        && (!('decenniumPositie' in request.resource.data) || request.resource.data.decenniumPositie is number)
+        && (!('locatie' in request.resource.data) || (request.resource.data.locatie is string && request.resource.data.locatie.size() < 200))
+        && (!('beschrijving' in request.resource.data) || (request.resource.data.beschrijving is string && request.resource.data.beschrijving.size() < 500))
+        && (!('ledenTags' in request.resource.data) || (request.resource.data.ledenTags is list && request.resource.data.ledenTags.size() < 30))
+        && (!('taggedEntryIds' in request.resource.data) || (request.resource.data.taggedEntryIds is list && request.resource.data.taggedEntryIds.size() < 30))
+        && (!('tagIds' in request.resource.data) || (request.resource.data.tagIds is list && request.resource.data.tagIds.size() < 20))
+        && (!('verwijderReden' in request.resource.data) || (request.resource.data.verwijderReden is string && request.resource.data.verwijderReden.size() < 300));
+    }
+  }
+}
