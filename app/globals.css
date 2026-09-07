@@ -1,8 +1,11 @@
 @import "tailwindcss";
 
+/* Kraftpapier/kampvuur-sfeer -- moet in sync blijven met lib/theme.ts
+   (colors.paper/ink/forest/campfire). Bewust geen dark-mode-variant: dit is
+   altijd dezelfde, warme "oud papier"-look, net als de oorspronkelijke app. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #F3ECDA;
+  --foreground: #2C2419;
 }
 
 @theme inline {
@@ -10,15 +13,26 @@
   --color-foreground: var(--foreground);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(circle at 20% 15%, rgba(62, 91, 69, 0.05), transparent 40%),
+    radial-gradient(circle at 85% 75%, rgba(193, 101, 29, 0.06), transparent 45%),
+    repeating-radial-gradient(circle at 50% 50%, rgba(44, 36, 25, 0.015) 0, rgba(44, 36, 25, 0.015) 1px, transparent 1px, transparent 3px);
+  color: var(--foreground);
+  font-family: 'Work Sans', -apple-system, sans-serif;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Responsive publieke navigatie (zie components/PublicNav.tsx): volledige
+   weergave vanaf een breder scherm, compacte balk + uitklapmenu eronder. */
+.vb-nav-klein {
+  display: none;
+}
+@media (max-width: 680px) {
+  .vb-nav-groot {
+    display: none;
+  }
+  .vb-nav-klein {
+    display: block;
+  }
 }
