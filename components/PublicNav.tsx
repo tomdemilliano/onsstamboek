@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useGroep } from "@/lib/groepContext";
 import { colors, fonts, radius } from "@/lib/theme";
+import { clearGroepCookie } from "@/lib/groepCookie";
 
+// Tijdlijn en Foto's komen pas in een latere fase -- pas hier toevoegen
+// zodra die pagina's effectief bestaan, anders leidt dit tot 404's
+// (o.a. via Next.js' achtergrond-prefetch van elke zichtbare <Link>).
 const LINKS = [
   { href: "/vriendenboekje", label: "Vriendenboekje", icon: "📖" },
-  { href: "/tijdlijn", label: "Tijdlijn", icon: "⏳" },
-  { href: "/fotos", label: "Foto's", icon: "📷" },
   { href: "/over-de-groep", label: "Over de groep", icon: "ℹ️" },
 ];
 
@@ -37,9 +39,17 @@ function Kampvuurtje({ maat = 30 }: { maat?: number }) {
 
 export default function PublicNav() {
   const groep = useGroep();
+  const router = useRouter();
   const pathname = usePathname();
   const basis = `/${groep.slug}`;
   const [menuOpen, setMenuOpen] = useState(false);
+
+  function kiesAndereGroep() {
+    // Zonder de cookie te wissen zou proxy.ts "/" meteen terugsturen naar
+    // deze zelfde groep.
+    clearGroepCookie();
+    router.push("/");
+  }
 
   // Sluit het uitklapmenu bij navigatie -- aanpassen tijdens het renderen
   // (React's aanbevolen patroon om state te resetten op een prop-wijziging)
@@ -100,6 +110,15 @@ export default function PublicNav() {
             );
           })}
         </div>
+
+        <div style={{ textAlign: "center", paddingTop: 10 }}>
+          <button
+            onClick={kiesAndereGroep}
+            style={{ background: "none", border: "none", cursor: "pointer", fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted, textDecoration: "underline" }}
+          >
+            Niet jouw groep? Kies opnieuw
+          </button>
+        </div>
       </div>
 
       {/* Compacte balk + uitklapmenu -- enkel op een smal scherm */}
@@ -157,6 +176,12 @@ export default function PublicNav() {
                 </Link>
               );
             })}
+            <button
+              onClick={kiesAndereGroep}
+              style={{ background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: "10px 14px", fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted, textDecoration: "underline" }}
+            >
+              Niet jouw groep? Kies opnieuw
+            </button>
           </div>
         )}
       </div>

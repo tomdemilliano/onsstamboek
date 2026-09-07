@@ -10,3 +10,12 @@ const GROEP_COOKIE = "stamboek_groep";
 export function setGroepCookie(slug: string) {
   document.cookie = `${GROEP_COOKIE}=${encodeURIComponent(slug)}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
 }
+
+/**
+ * Wist de gekozen groep. Nodig vóór je iemand naar "/" stuurt om opnieuw te
+ * kiezen: proxy.ts stuurt "/" anders meteen terug naar de nog aanwezige
+ * cookie, en "niet jouw groep?" zou dan nooit iets doen.
+ */
+export function clearGroepCookie() {
+  document.cookie = `${GROEP_COOKIE}=; path=/; max-age=0; samesite=lax`;
+}

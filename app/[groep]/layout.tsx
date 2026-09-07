@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 import { GroepFactory } from "@/lib/dbSchema";
 import { GroepProvider } from "@/lib/groepContext";
-import PublicNav from "@/components/PublicNav";
 
+// Enkel de groep-context (geen navigatie hier): de publieke nav zit in
+// (public)/layout.tsx, de beheer-nav in beheer/layout.tsx -- anders staan
+// ze allebei tegelijk op elke beheer-pagina.
 export default async function GroepLayout(
   props: LayoutProps<"/[groep]">
 ) {
@@ -13,10 +15,5 @@ export default async function GroepLayout(
     notFound();
   }
 
-  return (
-    <GroepProvider groep={groep}>
-      <PublicNav />
-      <main>{props.children}</main>
-    </GroepProvider>
-  );
+  return <GroepProvider groep={groep}>{props.children}</GroepProvider>;
 }
