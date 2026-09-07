@@ -1,0 +1,33 @@
+name: Set systeembeheerder
+
+# Handmatig te starten vanuit de GitHub-website (tabblad "Actions" ->
+# "Set systeembeheerder" -> "Run workflow"), zodat de custom claim
+# `systeembeheerder: true` (zie scripts/setSysteembeheerder.ts) gezet kan
+# worden zonder lokale terminal/Node -- dit kan niet via de Firebase
+# Console-UI, enkel via de Admin SDK.
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: "E-mailadres van het Firebase Auth-account dat systeembeheerder moet worden"
+        required: true
+        type: string
+
+jobs:
+  set-systeembeheerder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: Zet systeembeheerder-claim
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+        run: npm run set-systeembeheerder -- "${{ inputs.email }}"

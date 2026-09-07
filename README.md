@@ -57,11 +57,26 @@ single-tenant app -- zo blijft die bestaande site volledig onaangeroerd.
    ```
 8. Minstens één systeembeheerder-account aanmaken: registreer/maak een
    Firebase Auth-gebruiker aan (via de Firebase Console, tabblad
-   Authentication), en zet dan de custom claim:
+   Authentication), en zet dan de custom claim. Dit kan op twee manieren:
+
+   **Lokaal / via een terminal** (Cloud Shell kan ook, zonder iets lokaal
+   te installeren):
    ```
    FIREBASE_PROJECT_ID=... FIREBASE_CLIENT_EMAIL=... FIREBASE_PRIVATE_KEY=... \
      npm run set-systeembeheerder -- jouw@email.be
    ```
+
+   **Via de GitHub-website** (geen terminal nodig) -- eenmalig instellen,
+   nadien telkens met één klik te herhalen:
+   1. Zet de drie Admin SDK-variabelen als **repo-secrets**: GitHub →
+      dit repo → Settings → Secrets and variables → Actions → "New
+      repository secret" voor elk van `FIREBASE_PROJECT_ID`,
+      `FIREBASE_CLIENT_EMAIL` en `FIREBASE_PRIVATE_KEY` (dezelfde
+      waarden als hierboven, uit de service-account-sleutel).
+   2. Ga naar het tabblad **Actions** → workflow **"Set
+      systeembeheerder"** → **"Run workflow"** → vul het e-mailadres in
+      → **Run workflow**. Zie
+      `.github/workflows/set-systeembeheerder.yml`.
 9. Minstens één groep aanmaken (`groepen`-collectie) -- voorlopig
    handmatig via de Firebase Console of de systeembeheer-UI (self-service
    onboarding komt pas in een latere fase), en een `lidmaatschappen`-
