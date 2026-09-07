@@ -7,7 +7,8 @@ import { logout } from "@/lib/auth";
 import GroepWisselaar from "./GroepWisselaar";
 
 const SECTIES = [
-  { href: "/beheer", label: "Dashboard" },
+  { href: "/beheer", label: "Dashboard", exact: true },
+  { href: "/beheer/vriendenboek", label: "Vriendenboek" },
   { href: "/beheer/instellingen", label: "Instellingen" },
 ];
 
@@ -21,7 +22,7 @@ export default function AdminNav() {
       <nav style={{ display: "flex", gap: "1rem" }}>
         {SECTIES.map((sectie) => {
           const href = `${basis}${sectie.href}`;
-          const isActive = pathname.startsWith(href);
+          const isActive = sectie.exact ? pathname === href : pathname.startsWith(href);
           return (
             <Link key={href} href={href} style={{ fontWeight: isActive ? "bold" : "normal" }}>
               {sectie.label}
