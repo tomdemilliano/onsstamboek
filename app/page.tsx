@@ -1,6 +1,12 @@
 import GroepKeuze from "@/components/GroepKeuze";
 import { GroepFactory } from "@/lib/dbSchema";
 
+// Deze pagina heeft geen dynamisch route-segment en gebruikt geen
+// cookies()/headers(), dus zou Next.js ze zonder deze regel bij de build
+// EENMALIG statisch genereren -- de groepenlijst zou dan bevriezen op de
+// stand van de laatste deploy in plaats van live uit Firestore te lezen.
+export const dynamic = "force-dynamic";
+
 // Terugkerende bezoekers met een `stamboek_groep`-cookie worden door
 // proxy.ts al rechtstreeks naar hun laatst gekozen groep doorgestuurd --
 // deze pagina is dus vooral voor nieuwe bezoekers en voor "niet jouw groep?"
