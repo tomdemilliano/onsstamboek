@@ -3,21 +3,23 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useGroep } from "@/lib/groepContext";
-import { EntryFactory } from "@/lib/dbSchema";
+import { EntryFactory, PhotoFactory } from "@/lib/dbSchema";
 import { colors, fonts, fontImports, radius } from "@/lib/theme";
 import { toDisplayArray } from "@/lib/textUtils";
-import type { Entry, WithId } from "@/types/models";
+import { decenniumLabel } from "@/lib/fotoUtils";
+import type { Entry, Photo, WithId } from "@/types/models";
 
-// Foto's en leidingsploeg-jaren van deze persoon komen hier bij zodra de
-// Foto's- en Tijdlijn-fases gebouwd zijn (PhotoFactory.getByEntryId,
-// LeidingFactory.getByEntryId) -- nu nog niet, want die collecties/schermen
-// bestaan nog niet.
+// Leidingsploeg-jaren van deze persoon komen hier nog bij zodra
+// LeidingFactory.getByEntryId een scherm heeft dat ze toont -- de
+// foto-koppeling hieronder is al wel gebouwd (PhotoFactory.getByEntryId).
 export default function EntryDetailPage(props: PageProps<"/[groep]/entry/[id]">) {
   const { id } = use(props.params);
   const groep = useGroep();
   const basis = `/${groep.slug}`;
 
   const [entry, setEntry] = useState<WithId<Entry> | null | undefined>(undefined);
+  const [fotos, setFotos] = useState<WithId<Photo>[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   useEffect(() => {
     let actief = true;
@@ -25,11 +27,23 @@ export default function EntryDetailPage(props: PageProps<"/[groep]/entry/[id]">)
       if (!actief) return;
       const geldig = e && (e.status === "published" || e.status === "stub") && e.groepId === groep.id;
       setEntry(geldig ? e : null);
+      if (geldig) PhotoFactory.getByEntryId(groep.id, id).then((f) => actief && setFotos(f));
     });
     return () => {
       actief = false;
     };
   }, [id, groep.id]);
+
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    function handler(e: KeyboardEvent) {
+      if (e.key === "Escape") setLightboxIndex(null);
+      if (e.key === "ArrowLeft") setLightboxIndex((i) => (i !== null && i > 0 ? i - 1 : i));
+      if (e.key === "ArrowRight") setLightboxIndex((i) => (i !== null && i < fotos.length - 1 ? i + 1 : i));
+    }
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [lightboxIndex, fotos.length]);
 
   if (entry === undefined) {
     return <p style={{ padding: 48, fontFamily: fonts.body, color: colors.inkMuted }}>Bezig met laden...</p>;
@@ -153,10 +167,115 @@ export default function EntryDetailPage(props: PageProps<"/[groep]/entry/[id]">)
               />
             </div>
           )}
+
+          {fotos.length > 0 && (
+            <div style={{ marginTop: 30 }}>
+              <div style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: colors.forest, marginBottom: 10 }}>
+                📷 Foto&apos;s met {entry.naam.split(" ")[0]} ({fotos.length})
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 8 }}>
+                {fotos.map((foto, i) => (
+                  <button key={foto.id} onClick={() => setLightboxIndex(i)} style={{ display: "block", padding: 0, border: "none", background: "none", cursor: "pointer" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={foto.afbeeldingUrl} alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: radius.input, border: `1px solid ${colors.line}` }} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {lightboxIndex !== null && fotos[lightboxIndex] && (
+        <FotoLightbox
+          foto={fotos[lightboxIndex]}
+          basis={basis}
+          heeftVorige={lightboxIndex > 0}
+          heeftVolgende={lightboxIndex < fotos.length - 1}
+          onVorige={() => setLightboxIndex((i) => (i !== null ? i - 1 : i))}
+          onVolgende={() => setLightboxIndex((i) => (i !== null ? i + 1 : i))}
+          onSluiten={() => setLightboxIndex(null)}
+        />
+      )}
     </div>
   );
+}
+
+function FotoLightbox({
+  foto,
+  basis,
+  heeftVorige,
+  heeftVolgende,
+  onVorige,
+  onVolgende,
+  onSluiten,
+}: {
+  foto: WithId<Photo>;
+  basis: string;
+  heeftVorige: boolean;
+  heeftVolgende: boolean;
+  onVorige: () => void;
+  onVolgende: () => void;
+  onSluiten: () => void;
+}) {
+  const [fout, setFout] = useState(false);
+  const jaarTekst = foto.jaar ? String(foto.jaar) : foto.decennium != null ? decenniumLabel(foto.decennium) : null;
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(20, 16, 10, 0.96)", display: "flex", alignItems: "center", justifyContent: "center" }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onSluiten();
+      }}
+    >
+      {fout ? (
+        <div style={{ textAlign: "center", color: colors.white, fontFamily: fonts.body }}>
+          <div style={{ fontSize: 40, marginBottom: 10 }}>🖼️</div>
+          <p>Deze afbeelding kan hier niet getoond worden.</p>
+        </div>
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={foto.afbeeldingUrl} alt="" onError={() => setFout(true)} style={{ maxWidth: "94vw", maxHeight: "90vh", objectFit: "contain", display: "block" }} />
+      )}
+
+      {(jaarTekst || foto.locatie) && (
+        <div style={{ position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)", background: "rgba(0, 0, 0, 0.5)", borderRadius: radius.badge, padding: "6px 14px", fontFamily: fonts.body, fontSize: 12, color: colors.white }}>
+          {[jaarTekst, foto.locatie].filter(Boolean).join(" · ")}
+        </div>
+      )}
+
+      <div style={{ position: "fixed", top: 16, right: 16, display: "flex", alignItems: "center", gap: 8 }}>
+        <a
+          href={`${basis}/fotos/${foto.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Bewerken (opent in nieuw tabblad)"
+          aria-label="Bewerken (opent in nieuw tabblad)"
+          style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 999, background: "rgba(0, 0, 0, 0.5)", color: colors.white, fontFamily: fonts.body, fontSize: 12, fontWeight: 600, textDecoration: "none" }}
+        >
+          ✏️ Bewerken ↗
+        </a>
+        <button onClick={onSluiten} aria-label="Sluiten" style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "none", color: colors.white, fontSize: 16, cursor: "pointer", flexShrink: 0 }}>
+          ✕
+        </button>
+      </div>
+
+      {heeftVorige && (
+        <button onClick={onVorige} aria-label="Vorige foto" style={lightboxPijlStyle("left")}>
+          ‹
+        </button>
+      )}
+      {heeftVolgende && (
+        <button onClick={onVolgende} aria-label="Volgende foto" style={lightboxPijlStyle("right")}>
+          ›
+        </button>
+      )}
+    </div>
+  );
+}
+
+function lightboxPijlStyle(kant: "left" | "right"): React.CSSProperties {
+  return { position: "fixed", top: "50%", [kant]: 16, transform: "translateY(-50%)", width: 48, height: 48, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "none", color: colors.white, fontSize: 28, lineHeight: "48px", textAlign: "center", cursor: "pointer", fontFamily: fonts.body, fontWeight: 700 };
 }
 
 function VeldRij({

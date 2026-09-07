@@ -66,3 +66,26 @@ body {
   border: 3px solid #C1651D;
   cursor: pointer;
 }
+
+/* Foto's-overzicht (zie app/[groep]/(public)/fotos): categorieën-zijbalk
+   links op een breder scherm, ingeklapt achter een knopje op mobiel. */
+.vb-fotos-layout {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+}
+.vb-tag-sidebar {
+  width: 170px;
+  flex-shrink: 0;
+}
+.vb-tag-mobile-btn {
+  display: none;
+}
+@media (max-width: 680px) {
+  .vb-tag-sidebar {
+    display: none;
+  }
+  .vb-tag-mobile-btn {
+    display: block;
+  }
+}
