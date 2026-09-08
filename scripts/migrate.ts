@@ -9,32 +9,43 @@
  * naar het nieuwe project. Test dit eerst tegen een lege/staging-versie van
  * het nieuwe project voor je het tegen de definitieve database draait.
  *
+ * Elke afbeelding (fotos, entry-scans, jaarkentekens, mijlpaal-afbeeldingen)
+ * wordt zowel als bestand gekopieerd (bron -> doel-bucket, op het pad dat de
+ * nieuwe app ook zelf gebruikt) ALS de bijhorende Firestore-velden
+ * (afbeeldingUrl/afbeeldingPath, of scanUrl/scanPath) worden herschreven
+ * naar die nieuwe locatie -- anders zou de nieuwe app na de migratie stiekem
+ * afbeeldingen blijven tonen vanuit het OUDE project/bucket, en zou de
+ * gekopieerde bestand in het nieuwe project nergens naar verwijzen.
+ *
  * Kosten: elke foto wordt gedownload uit het oude project en opnieuw
  * geüpload naar het nieuwe -- dat kost Google Cloud-netwerkuitgaande
  * bandbreedte (orde grootte €0,10/GB; bij >500 foto's dus typisch een paar
  * dubbeltjes, geen grote kost, maar wel iets om bewust te doen). Gebruik
  * daarom eerst FOTO_LIMIT (zie hieronder) om een kleine testbatch te
  * migreren en te controleren voor je de volledige set draait. Het script
- * slaat foto's die in de doelbucket al bestaan over (idempotent), dus een
- * volgende run met een hogere/geen FOTO_LIMIT kost enkel nog de NIEUWE
+ * slaat bestanden die in de doelbucket al bestaan over (idempotent), dus
+ * een volgende run met een hogere/geen FOTO_LIMIT kost enkel nog de NIEUWE
  * bestanden -- al gemigreerde foto's worden niet nogmaals gedownload.
  *
  * Vereisten (env vars) -- voor zowel BRON (het oude project "Winkelsimpel")
  * als DOEL (het nieuwe project) telkens ofwel `<PREFIX>_SERVICE_ACCOUNT_KEY`
  * (aanbevolen, zie lib/adminCredential.ts) ofwel de 3 losse velden:
  *   BRON_SERVICE_ACCOUNT_KEY  of  BRON_PROJECT_ID, BRON_CLIENT_EMAIL, BRON_PRIVATE_KEY
- *   BRON_STORAGE_BUCKET                                     (bucket van het oude project)
+ *   BRON_STORAGE_BUCKET                                     (enkel de bucket-naam, bv.
+ *                                                            winkelsimpel.appspot.com --
+ *                                                            GEEN "gs://"-voorvoegsel en
+ *                                                            geen pad erachter)
  *   DOEL_SERVICE_ACCOUNT_KEY  of  DOEL_PROJECT_ID, DOEL_CLIENT_EMAIL, DOEL_PRIVATE_KEY
- *   DOEL_STORAGE_BUCKET                                     (bucket van het nieuwe project)
+ *   DOEL_STORAGE_BUCKET                                     (idem, van het nieuwe project)
  *   GROEP_ID           doc-ID van de al aangemaakte Sint-Eduardus-groep in `groepen` (nieuw project)
  *   ORGANISATIE_ID     doc-ID van de organisatie waaronder scouting-brede kentekens/mijlpalen komen (optioneel)
  *   FOTO_LIMIT         optioneel: migreer enkel de eerste N foto's (vriendenboekje/fotos/...)
  *                      -- zowel het Firestore-document als het bijhorende bestand, zodat een
  *                      testrun geen kapotte afbeeldingen oplevert. Scans/kentekens/mijlpalen-
  *                      afbeeldingen (veel minder talrijk) migreren altijd volledig.
- *   SKIP_STORAGE       optioneel: "true" om Storage (scans + foto's + kentekens/mijlpalen-
- *                      afbeeldingen) helemaal over te slaan -- enkel Firestore-data migreren,
- *                      zo goed als gratis en snel, handig om eerst te testen.
+ *   SKIP_STORAGE       optioneel: "true" om alle Storage-bestanden (scans, foto's, kentekens-
+ *                      en mijlpalen-afbeeldingen) over te slaan -- enkel Firestore-data
+ *                      migreren, zo goed als gratis, handig om eerst te testen.
  *
  * Gebruik:
  *   npx tsx scripts/migrate.ts
@@ -46,6 +57,8 @@ import { getAdminCredential } from "../lib/adminCredential";
 
 const BRON_DATABASE_ID = "sinteduardusscouts4ever";
 const BRON_STORAGE_PREFIX = "vriendenboekje";
+
+type Bucket = ReturnType<ReturnType<typeof getStorage>["bucket"]>;
 
 function vereist(naam: string): string {
   const waarde = process.env[naam];
@@ -63,12 +76,74 @@ function initApp(prefix: "BRON" | "DOEL") {
   );
 }
 
-// Simpele collecties: gewoon overkopiëren met hetzelfde document-ID (zodat
-// onderlinge verwijzingen zoals `entryId`/`itemId` geldig blijven) en een
-// `groepId` erbij. `photos` zit hier bewust NIET bij -- die heeft zijn eigen
-// functie hieronder, om synchroon te blijven met FOTO_LIMIT.
+/** Bouwt dezelfde soort download-URL als de client-SDK's getDownloadURL() -- werkt
+ * hier zonder token omdat storage.rules voor deze paden al `allow read: if true` is. */
+function buildDownloadUrl(bucket: Bucket, path: string): string {
+  return `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(path)}?alt=media`;
+}
+
+/**
+ * Kopieert één bestand van de bron- naar de doelbucket, tenzij het daar al
+ * bestaat (idempotent -- een herhaalde run kost dan geen nieuwe download/
+ * upload meer voor bestanden die al eerder gelukt zijn).
+ */
+async function kopieerBestandIndienNodig(
+  bronBucket: Bucket,
+  doelBucket: Bucket,
+  bronPad: string,
+  doelPad: string
+): Promise<"gekopieerd" | "overgeslagen-bestond-al" | "fout"> {
+  try {
+    const [bestaatAl] = await doelBucket.file(doelPad).exists();
+    if (bestaatAl) return "overgeslagen-bestond-al";
+
+    const bronFile = bronBucket.file(bronPad);
+    const [buffer] = await bronFile.download();
+    const [metadata] = await bronFile.getMetadata();
+    await doelBucket.file(doelPad).save(buffer, {
+      metadata: { contentType: metadata.contentType },
+    });
+    return "gekopieerd";
+  } catch (err) {
+    console.error(`  ! kopiëren mislukt voor ${bronPad}:`, err);
+    return "fout";
+  }
+}
+
+/**
+ * Kopieert een afbeelding EN geeft de nieuwe url/path terug om de
+ * Firestore-velden mee te herschrijven. Bij een mislukte kopie: null, zodat
+ * de aanroeper de oude (nog altijd geldige, want het oude project blijft
+ * bestaan) url/path gewoon behoudt in plaats van een gebroken verwijzing
+ * weg te schrijven.
+ */
+async function kopieerAfbeelding(
+  bronBucket: Bucket,
+  doelBucket: Bucket,
+  bronPad: string,
+  doelPad: string,
+  teller: { gekopieerd: number; overgeslagen: number; fouten: number }
+): Promise<{ afbeeldingUrl: string; afbeeldingPath: string } | null> {
+  const resultaat = await kopieerBestandIndienNodig(bronBucket, doelBucket, bronPad, doelPad);
+  if (resultaat === "gekopieerd") teller.gekopieerd += 1;
+  else if (resultaat === "overgeslagen-bestond-al") teller.overgeslagen += 1;
+  else {
+    teller.fouten += 1;
+    return null;
+  }
+  return { afbeeldingUrl: buildDownloadUrl(doelBucket, doelPad), afbeeldingPath: doelPad };
+}
+
+function nieuwPad(oudPad: string, groepId: string): string {
+  return oudPad.replace(`${BRON_STORAGE_PREFIX}/`, `groepen/${groepId}/`);
+}
+
+// Simpele collecties zonder eigen afbeeldingen: gewoon overkopiëren met
+// hetzelfde document-ID (zodat onderlinge verwijzingen zoals `entryId`/
+// `itemId` geldig blijven) en een `groepId` erbij. `entries`, `photos` en
+// `milestones` hebben elk hun eigen functie hieronder (i.v.m. hun
+// afbeeldingen/scans).
 const GROEP_COLLECTIES = [
-  "entries",
   "photoTags",
   "locations",
   "extraLocations",
@@ -106,19 +181,60 @@ async function migreerGroepCollecties(
   }
 }
 
+// `entries` heeft een optionele scan (ingescand papieren formulier) die
+// mee moet verhuizen naar groepen/{groepId}/scans/...
+async function migreerEntries(
+  bronDb: FirebaseFirestore.Firestore,
+  doelDb: FirebaseFirestore.Firestore,
+  bronBucket: Bucket,
+  doelBucket: Bucket,
+  groepId: string,
+  skipStorage: boolean
+) {
+  const snap = await bronDb.collection("entries").get();
+  const teller = { gekopieerd: 0, overgeslagen: 0, fouten: 0 };
+
+  for (const d of snap.docs) {
+    const data = d.data();
+    let scanUrl = data.scanUrl ?? null;
+    let scanPath = data.scanPath ?? null;
+
+    if (!skipStorage && data.scanPath) {
+      const doelPad = nieuwPad(data.scanPath, groepId);
+      const nieuw = await kopieerAfbeelding(bronBucket, doelBucket, data.scanPath, doelPad, teller);
+      if (nieuw) {
+        scanUrl = nieuw.afbeeldingUrl;
+        scanPath = nieuw.afbeeldingPath;
+      }
+    }
+
+    await doelDb.collection("entries").doc(d.id).set({ ...data, groepId, scanUrl, scanPath });
+  }
+
+  console.log(
+    `entries: ${snap.size} document(en) gemigreerd` +
+      (skipStorage ? " (scans overgeslagen, SKIP_STORAGE=true)." : `, scans: ${teller.gekopieerd} gekopieerd, ${teller.overgeslagen} bestonden al, ${teller.fouten} fout(en).`)
+  );
+}
+
 // `milestones` is een uitzondering: type 'scouting' gaat naar de
-// organisatie-collectie (eenmalig, niet per groep), type 'groep' gaat
-// gewoon naar `milestones` met een groepId zoals de rest.
+// organisatie-collectie (eenmalig, niet per groep, afbeelding naar
+// organisaties/{id}/mijlpalen/...), type 'groep' gaat naar `milestones`
+// met een groepId (afbeelding naar groepen/{groepId}/mijlpalen/...).
 async function migreerMijlpalen(
   bronDb: FirebaseFirestore.Firestore,
   doelDb: FirebaseFirestore.Firestore,
+  bronBucket: Bucket,
+  doelBucket: Bucket,
   groepId: string,
-  organisatieId: string | null
+  organisatieId: string | null,
+  skipStorage: boolean
 ) {
   const snap = await bronDb.collection("milestones").get();
   let groepTeller = 0;
   let scoutingTeller = 0;
   let overgeslagen = 0;
+  const afbeeldingTeller = { gekopieerd: 0, overgeslagen: 0, fouten: 0 };
 
   for (const d of snap.docs) {
     const data = d.data();
@@ -141,74 +257,93 @@ async function migreerMijlpalen(
         .get();
       if (!bestaandeQuery.empty) continue;
 
-      await doelDb.collection("organisaties").doc(organisatieId).collection("mijlpalen").doc(d.id).set(data);
+      let afbeeldingUrl = data.afbeeldingUrl ?? null;
+      let afbeeldingPath = data.afbeeldingPath ?? null;
+      if (!skipStorage && data.afbeeldingPath) {
+        const doelPad = (data.afbeeldingPath as string).replace(`${BRON_STORAGE_PREFIX}/`, `organisaties/${organisatieId}/`);
+        const nieuw = await kopieerAfbeelding(bronBucket, doelBucket, data.afbeeldingPath, doelPad, afbeeldingTeller);
+        if (nieuw) {
+          afbeeldingUrl = nieuw.afbeeldingUrl;
+          afbeeldingPath = nieuw.afbeeldingPath;
+        }
+      }
+
+      await doelDb.collection("organisaties").doc(organisatieId).collection("mijlpalen").doc(d.id).set({ ...data, afbeeldingUrl, afbeeldingPath });
       scoutingTeller += 1;
     } else {
-      await doelDb.collection("milestones").doc(d.id).set({ ...data, groepId });
+      let afbeeldingUrl = data.afbeeldingUrl ?? null;
+      let afbeeldingPath = data.afbeeldingPath ?? null;
+      if (!skipStorage && data.afbeeldingPath) {
+        const doelPad = nieuwPad(data.afbeeldingPath, groepId);
+        const nieuw = await kopieerAfbeelding(bronBucket, doelBucket, data.afbeeldingPath, doelPad, afbeeldingTeller);
+        if (nieuw) {
+          afbeeldingUrl = nieuw.afbeeldingUrl;
+          afbeeldingPath = nieuw.afbeeldingPath;
+        }
+      }
+
+      await doelDb.collection("milestones").doc(d.id).set({ ...data, groepId, afbeeldingUrl, afbeeldingPath });
       groepTeller += 1;
     }
   }
 
   console.log(`milestones: ${groepTeller} groep-mijlpalen, ${scoutingTeller} scouting-mijlpalen gemigreerd.`);
+  if (!skipStorage) {
+    console.log(`milestones: afbeeldingen -- ${afbeeldingTeller.gekopieerd} gekopieerd, ${afbeeldingTeller.overgeslagen} bestonden al, ${afbeeldingTeller.fouten} fout(en).`);
+  }
   if (overgeslagen > 0) {
     console.warn(`milestones: ${overgeslagen} scouting-mijlpalen overgeslagen (geen ORGANISATIE_ID opgegeven).`);
   }
 }
 
-// `badges` (jaarkentekens) zijn altijd bewegingsbreed -> organisatie-collectie.
+// `badges` (jaarkentekens) zijn altijd bewegingsbreed -> organisatie-collectie,
+// afbeelding naar organisaties/{organisatieId}/kentekens/...
 async function migreerKentekens(
   bronDb: FirebaseFirestore.Firestore,
   doelDb: FirebaseFirestore.Firestore,
-  organisatieId: string | null
+  bronBucket: Bucket,
+  doelBucket: Bucket,
+  organisatieId: string | null,
+  skipStorage: boolean
 ) {
   if (!organisatieId) {
     console.warn("badges: overgeslagen (geen ORGANISATIE_ID opgegeven).");
     return;
   }
   const snap = await bronDb.collection("badges").get();
+  const teller = { gekopieerd: 0, overgeslagen: 0, fouten: 0 };
+
   for (const d of snap.docs) {
-    await doelDb.collection("organisaties").doc(organisatieId).collection("kentekens").doc(d.id).set(d.data());
-  }
-  console.log(`badges: ${snap.size} kenteken(s) gemigreerd naar organisaties/${organisatieId}/kentekens.`);
-}
+    const data = d.data();
+    let afbeeldingUrl = data.afbeeldingUrl ?? null;
+    let afbeeldingPath = data.afbeeldingPath ?? null;
 
-/**
- * Kopieert één bestand van de bron- naar de doelbucket, tenzij het daar al
- * bestaat (idempotent -- een herhaalde run kost dan geen nieuwe download/
- * upload meer voor bestanden die al eerder gelukt zijn).
- */
-async function kopieerBestandIndienNodig(
-  bronBucket: ReturnType<ReturnType<typeof getStorage>["bucket"]>,
-  doelBucket: ReturnType<ReturnType<typeof getStorage>["bucket"]>,
-  bronPad: string,
-  doelPad: string
-): Promise<"gekopieerd" | "overgeslagen-bestond-al" | "fout"> {
-  try {
-    const [bestaatAl] = await doelBucket.file(doelPad).exists();
-    if (bestaatAl) return "overgeslagen-bestond-al";
+    if (!skipStorage && data.afbeeldingPath) {
+      const doelPad = (data.afbeeldingPath as string).replace(`${BRON_STORAGE_PREFIX}/`, `organisaties/${organisatieId}/`);
+      const nieuw = await kopieerAfbeelding(bronBucket, doelBucket, data.afbeeldingPath, doelPad, teller);
+      if (nieuw) {
+        afbeeldingUrl = nieuw.afbeeldingUrl;
+        afbeeldingPath = nieuw.afbeeldingPath;
+      }
+    }
 
-    const bronFile = bronBucket.file(bronPad);
-    const [buffer] = await bronFile.download();
-    const [metadata] = await bronFile.getMetadata();
-    await doelBucket.file(doelPad).save(buffer, {
-      metadata: { contentType: metadata.contentType },
-    });
-    return "gekopieerd";
-  } catch (err) {
-    console.error(`  ! kopiëren mislukt voor ${bronPad}:`, err);
-    return "fout";
+    await doelDb.collection("organisaties").doc(organisatieId).collection("kentekens").doc(d.id).set({ ...data, afbeeldingUrl, afbeeldingPath });
   }
+  console.log(
+    `badges: ${snap.size} kenteken(s) gemigreerd naar organisaties/${organisatieId}/kentekens` +
+      (skipStorage ? " (afbeeldingen overgeslagen, SKIP_STORAGE=true)." : `, afbeeldingen: ${teller.gekopieerd} gekopieerd, ${teller.overgeslagen} bestonden al, ${teller.fouten} fout(en).`)
+  );
 }
 
 // Foto's (vriendenboekje/fotos/...) horen 1-op-1 bij een `photos`-document --
-// beide samen migreren (i.p.v. los, zoals de rest van Storage) zodat
-// FOTO_LIMIT een consistente, meteen bruikbare testbatch oplevert: nooit een
-// Firestore-foto-document zonder het bijhorende bestand, of omgekeerd.
+// beide samen migreren (i.p.v. los) zodat FOTO_LIMIT een consistente, meteen
+// bruikbare testbatch oplevert: nooit een Firestore-foto-document zonder het
+// bijhorende bestand, of omgekeerd.
 async function migreerFotos(
   bronDb: FirebaseFirestore.Firestore,
   doelDb: FirebaseFirestore.Firestore,
-  bronBucket: ReturnType<ReturnType<typeof getStorage>["bucket"]>,
-  doelBucket: ReturnType<ReturnType<typeof getStorage>["bucket"]>,
+  bronBucket: Bucket,
+  doelBucket: Bucket,
   groepId: string,
   fotoLimit: number | null,
   skipStorage: boolean
@@ -225,57 +360,34 @@ async function migreerFotos(
     console.log(`photos: ${teMigreren.length} document(en) gevonden, geen FOTO_LIMIT (volledige migratie).`);
   }
 
-  let gekopieerd = 0;
-  let overgeslagen = 0;
-  let fouten = 0;
+  const teller = { gekopieerd: 0, overgeslagen: 0, fouten: 0 };
 
   for (let i = 0; i < teMigreren.length; i++) {
     const d = teMigreren[i];
     const data = d.data();
-
-    await doelDb.collection("photos").doc(d.id).set({ ...data, groepId });
+    let afbeeldingUrl = data.afbeeldingUrl ?? null;
+    let afbeeldingPath = data.afbeeldingPath ?? null;
 
     if (!skipStorage && data.afbeeldingPath) {
-      const doelPad = (data.afbeeldingPath as string).replace(`${BRON_STORAGE_PREFIX}/`, `groepen/${groepId}/`);
-      const resultaat = await kopieerBestandIndienNodig(bronBucket, doelBucket, data.afbeeldingPath, doelPad);
-      if (resultaat === "gekopieerd") gekopieerd += 1;
-      else if (resultaat === "overgeslagen-bestond-al") overgeslagen += 1;
-      else fouten += 1;
+      const doelPad = nieuwPad(data.afbeeldingPath, groepId);
+      const nieuw = await kopieerAfbeelding(bronBucket, doelBucket, data.afbeeldingPath, doelPad, teller);
+      if (nieuw) {
+        afbeeldingUrl = nieuw.afbeeldingUrl;
+        afbeeldingPath = nieuw.afbeeldingPath;
+      }
     }
 
+    await doelDb.collection("photos").doc(d.id).set({ ...data, groepId, afbeeldingUrl, afbeeldingPath });
+
     if ((i + 1) % 25 === 0 || i === teMigreren.length - 1) {
-      console.log(`  ... ${i + 1}/${teMigreren.length} foto's verwerkt (${gekopieerd} nieuw gekopieerd, ${overgeslagen} bestonden al, ${fouten} fout).`);
+      console.log(`  ... ${i + 1}/${teMigreren.length} foto's verwerkt (${teller.gekopieerd} nieuw gekopieerd, ${teller.overgeslagen} bestonden al, ${teller.fouten} fout).`);
     }
   }
 
-  console.log(`photos: klaar -- ${teMigreren.length} document(en), ${gekopieerd} bestand(en) gekopieerd, ${overgeslagen} oversloegen (bestonden al), ${fouten} fout(en).`);
+  console.log(`photos: klaar -- ${teMigreren.length} document(en), ${teller.gekopieerd} bestand(en) gekopieerd, ${teller.overgeslagen} oversloegen (bestonden al), ${teller.fouten} fout(en).`);
   if (fotoLimit != null && alleDocs.length > teMigreren.length) {
     console.log(`photos: ${alleDocs.length - teMigreren.length} foto's nog NIET gemigreerd -- draai het script opnieuw met een hogere/geen FOTO_LIMIT om de rest te migreren.`);
   }
-}
-
-// Storage buiten vriendenboekje/fotos/... (scans, kentekens, mijlpalen) --
-// in de praktijk veel minder bestanden, dus altijd in één keer volledig.
-async function migreerOverigeStorage(
-  bronBucket: ReturnType<ReturnType<typeof getStorage>["bucket"]>,
-  doelBucket: ReturnType<ReturnType<typeof getStorage>["bucket"]>,
-  groepId: string
-) {
-  const [files] = await bronBucket.getFiles({ prefix: `${BRON_STORAGE_PREFIX}/` });
-  const overig = files.filter((f) => !f.name.startsWith(`${BRON_STORAGE_PREFIX}/fotos/`));
-  console.log(`Storage (scans/kentekens/mijlpalen): ${overig.length} bestand(en) gevonden.`);
-
-  let gekopieerd = 0;
-  let overgeslagen = 0;
-  let fouten = 0;
-  for (const file of overig) {
-    const nieuwPad = file.name.replace(`${BRON_STORAGE_PREFIX}/`, `groepen/${groepId}/`);
-    const resultaat = await kopieerBestandIndienNodig(bronBucket, doelBucket, file.name, nieuwPad);
-    if (resultaat === "gekopieerd") gekopieerd += 1;
-    else if (resultaat === "overgeslagen-bestond-al") overgeslagen += 1;
-    else fouten += 1;
-  }
-  console.log(`Storage (scans/kentekens/mijlpalen): klaar -- ${gekopieerd} gekopieerd, ${overgeslagen} oversloegen (bestonden al), ${fouten} fout(en).`);
 }
 
 let bronApp: ReturnType<typeof initApp>;
@@ -306,14 +418,10 @@ async function main() {
   );
 
   await migreerGroepCollecties(bronDb, doelDb, groepId);
-  await migreerMijlpalen(bronDb, doelDb, groepId, organisatieId);
-  await migreerKentekens(bronDb, doelDb, organisatieId);
+  await migreerEntries(bronDb, doelDb, bronBucket, doelBucket, groepId, skipStorage);
+  await migreerMijlpalen(bronDb, doelDb, bronBucket, doelBucket, groepId, organisatieId, skipStorage);
+  await migreerKentekens(bronDb, doelDb, bronBucket, doelBucket, organisatieId, skipStorage);
   await migreerFotos(bronDb, doelDb, bronBucket, doelBucket, groepId, fotoLimit, skipStorage);
-  if (!skipStorage) {
-    await migreerOverigeStorage(bronBucket, doelBucket, groepId);
-  } else {
-    console.log("Storage (scans/kentekens/mijlpalen): overgeslagen (SKIP_STORAGE=true).");
-  }
 
   console.log("Migratie voltooid.");
 }
