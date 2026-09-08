@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useGroep } from "@/lib/groepContext";
-import { EntryFactory } from "@/lib/dbSchema";
+import { EntryFactory, PhotoFactory, LeidingFactory } from "@/lib/dbSchema";
 import { colors, fonts, fontImports, radius } from "@/lib/theme";
 import type { Entry, WithId } from "@/types/models";
 
@@ -13,16 +13,40 @@ export default function VriendenboekjePage() {
 
   const [entries, setEntries] = useState<WithId<Entry>[]>([]);
   const [stubs, setStubs] = useState<WithId<Entry>[]>([]);
+  const [fotoAantallen, setFotoAantallen] = useState<Record<string, number>>({});
+  const [leidingAantallen, setLeidingAantallen] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [zoek, setZoek] = useState("");
   const [tab, setTab] = useState<"leden" | "getagd">("leden");
 
   useEffect(() => {
     let actief = true;
-    Promise.all([EntryFactory.getPublished(groep.id), EntryFactory.getStubs(groep.id)]).then(([e, s]) => {
+    Promise.all([
+      EntryFactory.getPublished(groep.id),
+      EntryFactory.getStubs(groep.id),
+      PhotoFactory.getPublished(groep.id),
+      LeidingFactory.getAll(groep.id),
+    ]).then(([e, s, fotos, leiding]) => {
       if (!actief) return;
       setEntries(e);
       setStubs(s);
+
+      const fotoTellingen: Record<string, number> = {};
+      fotos.forEach((foto) => {
+        (foto.taggedEntryIds || []).forEach((entryId) => {
+          fotoTellingen[entryId] = (fotoTellingen[entryId] || 0) + 1;
+        });
+      });
+      setFotoAantallen(fotoTellingen);
+
+      const leidingTellingen: Record<string, number> = {};
+      leiding.forEach((item) => {
+        (item.leden || []).forEach((lid) => {
+          if (lid.entryId) leidingTellingen[lid.entryId] = (leidingTellingen[lid.entryId] || 0) + 1;
+        });
+      });
+      setLeidingAantallen(leidingTellingen);
+
       setLoading(false);
     });
     return () => {
@@ -32,6 +56,18 @@ export default function VriendenboekjePage() {
 
   const gefilterd = entries.filter((e) => `${e.naam} ${e.totemnaam ?? ""}`.toLowerCase().includes(zoek.toLowerCase()));
   const stubsGefilterd = stubs.filter((e) => e.naam.toLowerCase().includes(zoek.toLowerCase()));
+
+  // Onthoud de zichtbare volgorde (id + naam, zodat de detailpagina de naam
+  // van vorige/volgende meteen kan tonen zonder extra op te vragen), zodat
+  // de profielpagina van een lid ermee kan navigeren.
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(`vb-leden-volgorde-${groep.id}`, JSON.stringify(gefilterd.map((e) => ({ id: e.id, naam: e.naam }))));
+    } catch {
+      // sessionStorage niet beschikbaar (bv. privénavigatie) -- geen probleem,
+      // de detailpagina toont dan gewoon geen vorige/volgende-navigatie.
+    }
+  }, [gefilterd, groep.id]);
 
   return (
     <div style={{ minHeight: "100vh" }}>
@@ -178,6 +214,11 @@ export default function VriendenboekjePage() {
                         ⏳ Wacht op goedkeuring
                       </div>
                     )}
+                    {fotoAantallen[entry.id] > 0 && (
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 8, fontFamily: fonts.body, fontSize: 12, fontWeight: 600, color: colors.forest }}>
+                        📷 {fotoAantallen[entry.id]}
+                      </div>
+                    )}
                   </div>
                 </Link>
               ))}
@@ -221,6 +262,10 @@ export default function VriendenboekjePage() {
                     }}
                   >
                     <span style={{ fontFamily: fonts.display, fontSize: 17, fontWeight: 600, color: colors.ink }}>{entry.naam}</span>
+                    <span style={{ display: "flex", gap: 10, fontFamily: fonts.body, fontSize: 12, fontWeight: 600, color: colors.forest }}>
+                      {fotoAantallen[entry.id] > 0 && <span>📷 {fotoAantallen[entry.id]}</span>}
+                      {leidingAantallen[entry.id] > 0 && <span>👥 {leidingAantallen[entry.id]}</span>}
+                    </span>
                   </div>
                 </Link>
               ))}

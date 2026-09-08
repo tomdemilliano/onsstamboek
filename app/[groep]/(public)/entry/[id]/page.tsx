@@ -3,15 +3,18 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useGroep } from "@/lib/groepContext";
-import { EntryFactory, PhotoFactory } from "@/lib/dbSchema";
+import { EntryFactory, PhotoFactory, LeidingFactory, TakFactory } from "@/lib/dbSchema";
 import { colors, fonts, fontImports, radius } from "@/lib/theme";
 import { toDisplayArray } from "@/lib/textUtils";
 import { decenniumLabel } from "@/lib/fotoUtils";
+import { werkingsjaarLabel } from "@/lib/tijdlijnUtils";
 import type { Entry, Photo, WithId } from "@/types/models";
 
-// Leidingsploeg-jaren van deze persoon komen hier nog bij zodra
-// LeidingFactory.getByEntryId een scherm heeft dat ze toont -- de
-// foto-koppeling hieronder is al wel gebouwd (PhotoFactory.getByEntryId).
+interface LeidingJaar {
+  werkingsjaarStart: number;
+  takNaam: string;
+}
+
 export default function EntryDetailPage(props: PageProps<"/[groep]/entry/[id]">) {
   const { id } = use(props.params);
   const groep = useGroep();
@@ -19,20 +22,61 @@ export default function EntryDetailPage(props: PageProps<"/[groep]/entry/[id]">)
 
   const [entry, setEntry] = useState<WithId<Entry> | null | undefined>(undefined);
   const [fotos, setFotos] = useState<WithId<Photo>[]>([]);
+  const [leidingJaren, setLeidingJaren] = useState<LeidingJaar[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [toonScan, setToonScan] = useState(false);
+  const [ledenVolgorde, setLedenVolgorde] = useState<{ id: string; naam: string }[]>([]);
+
+  // De volgorde die de bezoeker op /vriendenboekje zag (met eventuele
+  // zoekfilter), zodat vorige/volgende hier diezelfde volgorde volgt. Via
+  // Promise.resolve().then() i.p.v. rechtstreeks, ook al is de
+  // sessionStorage-lezing zelf synchroon (geen synchrone setState in een
+  // effect-body toegestaan).
+  useEffect(() => {
+    let actief = true;
+    Promise.resolve().then(() => {
+      if (!actief) return;
+      try {
+        const raw = sessionStorage.getItem(`vb-leden-volgorde-${groep.id}`);
+        setLedenVolgorde(raw ? JSON.parse(raw) : []);
+      } catch {
+        setLedenVolgorde([]);
+      }
+    });
+    return () => {
+      actief = false;
+    };
+  }, [groep.id]);
 
   useEffect(() => {
     let actief = true;
     EntryFactory.getById(id).then((e) => {
       if (!actief) return;
+      setToonScan(false);
       const geldig = e && (e.status === "published" || e.status === "stub") && e.groepId === groep.id;
       setEntry(geldig ? e : null);
-      if (geldig) PhotoFactory.getByEntryId(groep.id, id).then((f) => actief && setFotos(f));
+      if (geldig) {
+        PhotoFactory.getByEntryId(groep.id, id).then((f) => actief && setFotos(f));
+        Promise.all([LeidingFactory.getByEntryId(groep.id, id), TakFactory.getAll(groep.id)]).then(([leidingData, takken]) => {
+          if (!actief) return;
+          const lijst = leidingData
+            .map((item) => ({
+              werkingsjaarStart: item.werkingsjaarStart,
+              takNaam: takken.find((t) => t.id === item.takId)?.naam || "(onbekende tak)",
+            }))
+            .sort((a, b) => b.werkingsjaarStart - a.werkingsjaarStart);
+          setLeidingJaren(lijst);
+        });
+      }
     });
     return () => {
       actief = false;
     };
   }, [id, groep.id]);
+
+  const huidigeIndex = ledenVolgorde.findIndex((e) => e.id === id);
+  const vorigeLid = huidigeIndex > 0 ? ledenVolgorde[huidigeIndex - 1] : null;
+  const volgendeLid = huidigeIndex >= 0 && huidigeIndex < ledenVolgorde.length - 1 ? ledenVolgorde[huidigeIndex + 1] : null;
 
   useEffect(() => {
     if (lightboxIndex === null) return;
@@ -70,6 +114,33 @@ export default function EntryDetailPage(props: PageProps<"/[groep]/entry/[id]">)
         <Link href={`${basis}/vriendenboekje`} style={{ fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted, textDecoration: "none" }}>
           ← Terug naar het vriendenboekje
         </Link>
+
+        {(vorigeLid || volgendeLid) && (
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginTop: 14 }}>
+            {vorigeLid ? (
+              <Link
+                href={`${basis}/entry/${vorigeLid.id}`}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: radius.badge, border: `1px solid ${colors.line}`, background: colors.paperCard, color: colors.ink, fontFamily: fonts.body, fontSize: 13, textDecoration: "none", maxWidth: "48%" }}
+              >
+                <span style={{ flexShrink: 0 }}>‹</span>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{vorigeLid.naam}</span>
+              </Link>
+            ) : (
+              <span />
+            )}
+            {volgendeLid ? (
+              <Link
+                href={`${basis}/entry/${volgendeLid.id}`}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: radius.badge, border: `1px solid ${colors.line}`, background: colors.paperCard, color: colors.ink, fontFamily: fonts.body, fontSize: 13, textDecoration: "none", maxWidth: "48%", marginLeft: "auto" }}
+              >
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{volgendeLid.naam}</span>
+                <span style={{ flexShrink: 0 }}>›</span>
+              </Link>
+            ) : (
+              <span />
+            )}
+          </div>
+        )}
 
         <div style={{ background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "36px 32px", marginTop: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
@@ -155,16 +226,39 @@ export default function EntryDetailPage(props: PageProps<"/[groep]/entry/[id]">)
             <VeldRij titel="Het plezantste spel of de strafste activiteit" waarden={toDisplayArray(entry.leuksteActiviteit)} />
             <VeldRij titel="De beste kampplaats ooit" waarden={toDisplayArray(entry.besteKampplaats)} />
             <VeldRij titel="Het lekkerste kamp-eten" waarden={toDisplayArray(entry.lekkersteEten)} achtergrond={colors.campfireLight} zonderRand />
+
+            {leidingJaren.length > 0 && (
+              <div>
+                <div style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: colors.forest, marginBottom: 6 }}>👥 Leiding</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {leidingJaren.map((item, i) => (
+                    <div key={i} style={{ fontFamily: fonts.body, fontSize: 15, color: colors.ink }}>
+                      <span style={{ fontWeight: 600 }}>{item.takNaam}</span>
+                      {" — "}
+                      {werkingsjaarLabel(item.werkingsjaarStart)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {entry.scanUrl && (
             <div style={{ marginTop: 30 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={entry.scanUrl}
-                alt={`Origineel formulier van ${entry.naam}`}
-                style={{ display: "block", maxWidth: "100%", borderRadius: radius.card, border: `1px solid ${colors.line}` }}
-              />
+              <button
+                onClick={() => setToonScan((v) => !v)}
+                style={{ padding: "8px 16px", borderRadius: radius.badge, border: `1px solid ${colors.line}`, background: "transparent", color: colors.inkMuted, fontFamily: fonts.body, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+              >
+                {toonScan ? "Verberg origineel formulier" : "Bekijk origineel formulier"}
+              </button>
+              {toonScan && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={entry.scanUrl}
+                  alt={`Origineel formulier van ${entry.naam}`}
+                  style={{ display: "block", maxWidth: "100%", marginTop: 14, borderRadius: radius.card, border: `1px solid ${colors.line}` }}
+                />
+              )}
             </div>
           )}
 
