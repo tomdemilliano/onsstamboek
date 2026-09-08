@@ -88,9 +88,44 @@ single-tenant app -- zo blijft die bestaande site volledig onaangeroerd.
 ## Migratie van de bestaande Sint-Eduardus-data
 
 Zie `scripts/migrate.ts` -- vereist service-account-sleutels van zowel
-het oude ("Winkelsimpel") als het nieuwe Firebase-project. Test dit eerst
-tegen een lege/staging-versie van het nieuwe project. Details en
-env-variabelen staan bovenaan het script zelf.
+het oude ("Winkelsimpel") als het nieuwe Firebase-project. Het script
+LEEST enkel uit het oude project (geen risico voor de huidige, live
+site) en SCHRIJFT enkel naar het nieuwe project. Test dit eerst tegen
+een lege/staging-versie van het nieuwe project.
+
+**Kost**: foto's migreren kost Google Cloud-netwerkbandbreedte (elke
+foto wordt gedownload uit het oude project en opnieuw geüpload naar het
+nieuwe) -- bij >500 foto's typisch een kost van hooguit een paar
+dubbeltjes, maar wel bewust om in stappen te doen via `FOTO_LIMIT` (zie
+hieronder). Het script slaat foto's die in de doelbucket al bestaan
+over, dus een volgende run met een hogere/geen `FOTO_LIMIT` kost enkel
+nog de nieuwe bestanden.
+
+**Via de GitHub-website** (geen terminal nodig):
+1. Zet 6 repo-secrets: GitHub → dit repo → Settings → Secrets and
+   variables → Actions → "New repository secret":
+   - `BRON_SERVICE_ACCOUNT_KEY` -- volledige inhoud van het gedownloade
+     service-account-JSON-bestand van het OUDE ("Winkelsimpel")
+     Firebase-project (enkel leestoegang nodig).
+   - `BRON_STORAGE_BUCKET` -- de Storage-bucket-naam van dat oude project.
+   - `DOEL_SERVICE_ACCOUNT_KEY` -- hetzelfde, maar van dit NIEUWE project
+     (kan dezelfde sleutel zijn als `FIREBASE_SERVICE_ACCOUNT_KEY`
+     hierboven).
+   - `DOEL_STORAGE_BUCKET` -- de Storage-bucket-naam van dit nieuwe project.
+2. Ga naar het tabblad **Actions** → workflow **"Migreer
+   Sint-Eduardus-data"** → **"Run workflow"**:
+   - `groep_id`: het doc-ID van de al aangemaakte Sint-Eduardus-groep.
+   - `foto_limit`: laat dit **eerst klein** (bv. `10`) om een testbatch
+     te migreren en te controleren op de Vercel-preview-omgeving; laat
+     leeg in een latere run om de rest van de foto's te migreren.
+   - `skip_storage`: aanvinken om eerst enkel de Firestore-data
+     (vriendenboekje-fiches, tags, links...) te migreren zonder ook maar
+     één foto te downloaden -- zo goed als gratis, handig voor de allereerste test.
+3. Herhaal met een hogere/geen `foto_limit` zodra je tevreden bent --
+   reeds gemigreerde foto's worden niet opnieuw gedownload.
+
+Zie `.github/workflows/migrate.yml` en de uitgebreide uitleg bovenaan
+`scripts/migrate.ts` voor alle details en env-variabelen.
 
 ## Vercel (deployment)
 

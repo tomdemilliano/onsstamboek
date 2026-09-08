@@ -1,0 +1,58 @@
+name: Migreer Sint-Eduardus-data
+
+# Handmatig te starten vanuit de GitHub-website (tabblad "Actions" ->
+# "Migreer Sint-Eduardus-data" -> "Run workflow"), zodat scripts/migrate.ts
+# gedraaid kan worden zonder lokale terminal/Node. Kopieert data van het
+# OUDE ("Winkelsimpel") Firebase-project naar het NIEUWE project van dit
+# platform -- leest enkel uit het oude project, dus geen risico voor de
+# huidige, live site.
+#
+# Kost: foto's migreren kost Google Cloud-netwerkbandbreedte (downloaden
+# uit het oude project, opnieuw uploaden naar het nieuwe). Gebruik daarom
+# eerst foto_limit om een kleine testbatch te migreren en te controleren
+# voor je de rest (leeg laten = alles) draait -- een volgende run slaat
+# foto's die er al staan gewoon over, dus dat kost dan niets extra.
+on:
+  workflow_dispatch:
+    inputs:
+      groep_id:
+        description: "Doc-ID van de Sint-Eduardus-groep in de 'groepen'-collectie (nieuw project)"
+        required: true
+        type: string
+      organisatie_id:
+        description: "Doc-ID van de organisatie voor kentekens/scouting-mijlpalen (optioneel, leeg = overslaan)"
+        required: false
+        type: string
+      foto_limit:
+        description: "Migreer enkel de eerste N foto's -- leeg laten voor alle foto's. Gebruik dit eerst voor een kleine testbatch (bv. 10)."
+        required: false
+        type: string
+      skip_storage:
+        description: "Enkel Firestore-data migreren, Storage (scans/foto's/kentekens/mijlpalen) helemaal overslaan -- zo goed als gratis, handig om eerst te testen"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      - name: Migreer data
+        env:
+          BRON_SERVICE_ACCOUNT_KEY: ${{ secrets.BRON_SERVICE_ACCOUNT_KEY }}
+          BRON_STORAGE_BUCKET: ${{ secrets.BRON_STORAGE_BUCKET }}
+          DOEL_SERVICE_ACCOUNT_KEY: ${{ secrets.DOEL_SERVICE_ACCOUNT_KEY }}
+          DOEL_STORAGE_BUCKET: ${{ secrets.DOEL_STORAGE_BUCKET }}
+          GROEP_ID: ${{ inputs.groep_id }}
+          ORGANISATIE_ID: ${{ inputs.organisatie_id }}
+          FOTO_LIMIT: ${{ inputs.foto_limit }}
+          SKIP_STORAGE: ${{ inputs.skip_storage }}
+        run: npm run migrate
