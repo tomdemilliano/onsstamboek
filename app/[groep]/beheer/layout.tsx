@@ -5,7 +5,7 @@ export default function BeheerLayout({ children }: { children: React.ReactNode }
   return (
     <RequireGroepsbeheerder>
       <AdminNav />
-      <main>{children}</main>
+      <main style={{ minHeight: "100vh" }}>{children}</main>
     </RequireGroepsbeheerder>
   );
 }

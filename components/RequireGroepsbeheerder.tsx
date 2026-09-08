@@ -6,6 +6,7 @@ import type { User } from "firebase/auth";
 import { watchAuth, isSysteembeheerder } from "@/lib/auth";
 import { LidmaatschapFactory } from "@/lib/dbSchema";
 import { useGroep } from "@/lib/groepContext";
+import { colors, fonts } from "@/lib/theme";
 
 type Status = "laden" | "toegang" | "geenToegang";
 
@@ -36,9 +37,15 @@ export default function RequireGroepsbeheerder({ children }: { children: React.R
     });
   }, [groep.id, router]);
 
-  if (status === "laden") return <p style={{ padding: "2rem" }}>Bezig met laden...</p>;
+  if (status === "laden") {
+    return <p style={{ padding: "2rem", fontFamily: fonts.body, color: colors.inkMuted }}>Bezig met laden...</p>;
+  }
   if (status === "geenToegang") {
-    return <p style={{ padding: "2rem" }}>Je bent geen beheerder van {groep.naam}.</p>;
+    return (
+      <p style={{ padding: "2rem", fontFamily: fonts.body, color: colors.stamp }}>
+        Je bent geen beheerder van {groep.naam}.
+      </p>
+    );
   }
   return <>{children}</>;
 }

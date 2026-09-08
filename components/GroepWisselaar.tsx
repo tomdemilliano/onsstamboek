@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { watchAuth } from "@/lib/auth";
 import { GroepFactory, LidmaatschapFactory } from "@/lib/dbSchema";
 import { useGroep } from "@/lib/groepContext";
+import { colors, fonts, radius } from "@/lib/theme";
 import type { Groep, WithId } from "@/types/models";
 
 /**
@@ -37,9 +38,20 @@ export default function GroepWisselaar() {
     <select
       value={huidigeGroep.slug}
       onChange={(e) => router.push(`/${e.target.value}/beheer`)}
+      style={{
+        padding: "6px 10px",
+        borderRadius: radius.input,
+        border: "1px solid rgba(255,255,255,0.3)",
+        background: colors.forestDark,
+        color: colors.white,
+        fontFamily: fonts.body,
+        fontSize: 12,
+        fontWeight: 600,
+        cursor: "pointer",
+      }}
     >
       {groepen.map((groep) => (
-        <option key={groep.id} value={groep.slug}>
+        <option key={groep.id} value={groep.slug} style={{ color: colors.ink, background: colors.white }}>
           {groep.naam}
         </option>
       ))}
