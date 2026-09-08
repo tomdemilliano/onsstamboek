@@ -42,6 +42,7 @@ import type {
   ContactBericht,
   Activiteit,
   WijzigingsVoorstel,
+  Statistiek,
   WithId,
 } from "@/types/models";
 
@@ -1125,10 +1126,10 @@ export const StatsFactory = {
     }
   },
 
-  async getAll(groepId: string) {
+  async getAll(groepId: string): Promise<WithId<Statistiek>[]> {
     const q = query(collection(db, STATISTIEKEN), where("groepId", "==", groepId));
     const snap = await getDocs(q);
-    return docsToArray(snap.docs);
+    return docsToArray<Statistiek>(snap.docs);
   },
 };
 
