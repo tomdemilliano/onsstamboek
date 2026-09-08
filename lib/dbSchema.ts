@@ -135,6 +135,20 @@ export const OrganisatieFactory = {
     });
     return docRef.id;
   },
+
+  async update(
+    id: string,
+    { naam, file, bestaandePath }: { naam: string; file?: File | null; bestaandePath?: string | null }
+  ): Promise<void> {
+    const data: Record<string, unknown> = { naam };
+    if (file) {
+      if (bestaandePath) await verwijderAfbeelding(bestaandePath);
+      const upload = await uploadOrganisatieAfbeelding(id, file, "logo", "logo");
+      data.logoUrl = upload.url;
+      data.logoPath = upload.path;
+    }
+    await updateDoc(doc(db, ORGANISATIES, id), data);
+  },
 };
 
 const LIDMAATSCHAPPEN = "lidmaatschappen";
@@ -272,6 +286,21 @@ export const OrganisatieMijlpaalFactory = {
       });
     }
     return docRef.id;
+  },
+
+  async update(
+    organisatieId: string,
+    id: string,
+    { jaar, titel, beschrijving, file, bestaandePath }: { jaar: number; titel: string; beschrijving: string; file?: File | null; bestaandePath?: string | null }
+  ): Promise<void> {
+    const data: Record<string, unknown> = { jaar, titel, beschrijving };
+    if (file) {
+      if (bestaandePath) await verwijderAfbeelding(bestaandePath);
+      const upload = await uploadOrganisatieAfbeelding(organisatieId, file, "mijlpalen", id);
+      data.afbeeldingUrl = upload.url;
+      data.afbeeldingPath = upload.path;
+    }
+    await updateDoc(doc(organisatieSubcollectie(organisatieId, "mijlpalen"), id), data);
   },
 
   async remove(organisatieId: string, id: string, afbeeldingPath?: string | null): Promise<void> {

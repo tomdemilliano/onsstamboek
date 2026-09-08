@@ -19,6 +19,7 @@ export type WithId<T> = T & { id: string };
 export interface Organisatie {
   naam: string;
   logoUrl?: string | null;
+  logoPath?: string | null;
   createdAt?: Timestamp;
 }
 

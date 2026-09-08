@@ -1,12 +1,11 @@
 import RequireSysteembeheerder from "@/components/RequireSysteembeheerder";
+import SysteemNav from "@/components/SysteemNav";
 
 export default function SysteembeheerLayout({ children }: { children: React.ReactNode }) {
   return (
     <RequireSysteembeheerder>
-      <header style={{ padding: "1rem 1.5rem" }}>
-        <strong>Systeembeheer</strong>
-      </header>
-      <main>{children}</main>
+      <SysteemNav />
+      <main style={{ minHeight: "100vh" }}>{children}</main>
     </RequireSysteembeheerder>
   );
 }

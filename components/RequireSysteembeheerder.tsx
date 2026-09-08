@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { watchAuth, isSysteembeheerder } from "@/lib/auth";
+import { colors, fonts } from "@/lib/theme";
 
 type Status = "laden" | "toegang" | "geenToegang";
 
@@ -21,9 +22,11 @@ export default function RequireSysteembeheerder({ children }: { children: React.
     });
   }, [router]);
 
-  if (status === "laden") return <p style={{ padding: "2rem" }}>Bezig met laden...</p>;
+  if (status === "laden") {
+    return <p style={{ padding: "2rem", fontFamily: fonts.body, color: colors.inkMuted }}>Bezig met laden...</p>;
+  }
   if (status === "geenToegang") {
-    return <p style={{ padding: "2rem" }}>Enkel toegankelijk voor de systeembeheerder.</p>;
+    return <p style={{ padding: "2rem", fontFamily: fonts.body, color: colors.stamp }}>Enkel toegankelijk voor de systeembeheerder.</p>;
   }
   return <>{children}</>;
 }
