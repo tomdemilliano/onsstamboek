@@ -40,6 +40,40 @@ function Kampvuurtje({ maat = 30 }: { maat?: number }) {
   );
 }
 
+/**
+ * Vast, klein icoontje rechtsboven in beeld (blijft ook zichtbaar bij het
+ * scrollen) -- een aparte, altijd-zichtbare kortere weg naar het
+ * contactformulier van déze groep, i.p.v. enkel een link ergens in de nav.
+ */
+function ContactLink({ basis, naam }: { basis: string; naam: string }) {
+  return (
+    <Link
+      href={`${basis}/contact`}
+      title={`Contacteer ${naam}`}
+      aria-label={`Contacteer ${naam}`}
+      style={{
+        position: "fixed",
+        top: 12,
+        right: 12,
+        zIndex: 50,
+        width: 34,
+        height: 34,
+        borderRadius: "50%",
+        background: colors.paperCard,
+        border: `1.5px solid ${colors.line}`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 15,
+        textDecoration: "none",
+        boxShadow: "0 2px 6px rgba(44, 36, 25, 0.12)",
+      }}
+    >
+      ✉️
+    </Link>
+  );
+}
+
 export default function PublicNav() {
   const groep = useGroep();
   const router = useRouter();
@@ -65,6 +99,8 @@ export default function PublicNav() {
 
   return (
     <div>
+      <ContactLink basis={basis} naam={groep.naam} />
+
       {/* Volledige weergave -- vanaf een breder scherm */}
       <div className="vb-nav-groot">
         <div style={{ textAlign: "center", paddingTop: 24 }}>
@@ -126,7 +162,7 @@ export default function PublicNav() {
 
       {/* Compacte balk + uitklapmenu -- enkel op een smal scherm */}
       <div className="vb-nav-klein">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 44px 12px 16px" }}>
           <Link href={basis} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
             <Kampvuurtje maat={26} />
             <span style={{ fontFamily: fonts.display, fontSize: 15, fontWeight: 700, color: colors.ink }}>{groep.naam}</span>

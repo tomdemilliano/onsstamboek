@@ -15,6 +15,8 @@ const SECTIES = [
   { href: "/beheer/fotos", label: "Foto's", icon: "📷" },
   { href: "/beheer/gerechten", label: "Gerechten", icon: "🍽️" },
   { href: "/beheer/links", label: "Links", icon: "🔗" },
+  { href: "/beheer/activiteit", label: "Activiteit", icon: "📝" },
+  { href: "/beheer/contact", label: "Contact", icon: "✉️" },
   { href: "/beheer/instellingen", label: "Instellingen", icon: "⚙️" },
 ];
 

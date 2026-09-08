@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useGroep } from "@/lib/groepContext";
 import { EntryFactory, WijzigingFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
@@ -25,6 +26,7 @@ function alsTekst(waarde: unknown): string {
 export default function WijzigingenPage() {
   const groep = useGroep();
   const basis = `/${groep.slug}`;
+  const searchParams = useSearchParams();
 
   const [voorstellen, setVoorstellen] = useState<WithId<WijzigingsVoorstel>[]>([]);
   const [entries, setEntries] = useState<Record<string, WithId<Entry> | null>>({});
@@ -61,6 +63,17 @@ export default function WijzigingenPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groep.id]);
+
+  // Vanuit het activiteitenlog rechtstreeks naar het voorstel voor een
+  // bepaalde fiche springen.
+  const gemarkeerdeEntryId = searchParams.get("entry");
+  useEffect(() => {
+    if (loading || !gemarkeerdeEntryId) return;
+    const timer = setTimeout(() => {
+      document.getElementById(`voorstel-entry-${gemarkeerdeEntryId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [loading, gemarkeerdeEntryId]);
 
   const tabs = [
     { href: `${basis}/beheer/vriendenboek`, label: "Overzicht", exact: true },
@@ -121,7 +134,17 @@ export default function WijzigingenPage() {
           });
 
           return (
-            <div key={voorstel.id} style={{ background: colors.campfireLight, border: `1.5px dashed ${colors.campfire}`, borderRadius: radius.card, padding: "16px 18px" }}>
+            <div
+              key={voorstel.id}
+              id={`voorstel-entry-${voorstel.entryId}`}
+              style={{
+                background: colors.campfireLight,
+                border: `1.5px dashed ${colors.campfire}`,
+                borderRadius: radius.card,
+                padding: "16px 18px",
+                outline: gemarkeerdeEntryId === voorstel.entryId ? `3px solid ${colors.forest}` : "none",
+              }}
+            >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
                 <div style={{ fontFamily: fonts.display, fontSize: 17, fontWeight: 700, color: colors.ink }}>{huidig ? huidig.naam : "(fiche niet gevonden)"}</div>
                 <div style={{ fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted }}>Ingediend door: {voorstel.email}</div>

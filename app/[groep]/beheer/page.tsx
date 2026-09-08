@@ -11,6 +11,7 @@ import {
   LinkFactory,
   PhotoFactory,
   WijzigingFactory,
+  ContactFactory,
 } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import { toTextArray } from "@/lib/textUtils";
@@ -51,7 +52,8 @@ export default function BeheerDashboard() {
       LinkFactory.getAll(groep.id),
       PhotoFactory.getAllAdmin(groep.id),
       WijzigingFactory.getAll(groep.id),
-    ]).then(([entries, locaties, extraLocaties, mijlpalen, links, fotos, wijzigingen]) => {
+      ContactFactory.getAll(groep.id),
+    ]).then(([entries, locaties, extraLocaties, mijlpalen, links, fotos, wijzigingen, contactBerichten]) => {
       if (!actief) return;
 
       const isGoedTeKeuren = (e: WithId<Entry>) => e.status === "draft" || (e.status === "published" && e.goedgekeurd === false);
@@ -139,6 +141,14 @@ export default function BeheerDashboard() {
           href: `${basis}/beheer/vriendenboek/wijzigingen`,
           label: `${wijzigingen.length} wijzigingsvoorstel${wijzigingen.length === 1 ? "" : "len"} om na te kijken`,
           icon: "✏️",
+        });
+      }
+      const ongelezenContact = contactBerichten.filter((b) => !b.gelezen);
+      if (ongelezenContact.length > 0) {
+        lijst.push({
+          href: `${basis}/beheer/contact`,
+          label: `${ongelezenContact.length} nieuw${ongelezenContact.length === 1 ? "" : "e"} contactbericht${ongelezenContact.length === 1 ? "" : "en"}`,
+          icon: "✉️",
         });
       }
       setTodos(lijst);
