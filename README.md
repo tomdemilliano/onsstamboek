@@ -115,6 +115,12 @@ nog de nieuwe bestanden.
 2. Ga naar het tabblad **Actions** → workflow **"Migreer
    Sint-Eduardus-data"** → **"Run workflow"**:
    - `groep_id`: het doc-ID van de al aangemaakte Sint-Eduardus-groep.
+     Laat dit leeg als je de groep-data al eerder migreerde en nu enkel
+     nog bewegingsbrede data (kentekens/scouting-mijlpalen) wil
+     toevoegen -- minstens `groep_id` of `organisatie_id` is verplicht.
+   - `organisatie_id`: het doc-ID van de organisatie (zie
+     `/systeembeheer`) waaronder kentekens/scouting-mijlpalen komen.
+     Laat leeg als je enkel groep-data migreert.
    - `foto_limit`: laat dit **eerst klein** (bv. `10`) om een testbatch
      te migreren en te controleren op de Vercel-preview-omgeving; laat
      leeg in een latere run om de rest van de foto's te migreren.

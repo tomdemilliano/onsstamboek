@@ -37,8 +37,14 @@
  *                                                            geen pad erachter)
  *   DOEL_SERVICE_ACCOUNT_KEY  of  DOEL_PROJECT_ID, DOEL_CLIENT_EMAIL, DOEL_PRIVATE_KEY
  *   DOEL_STORAGE_BUCKET                                     (idem, van het nieuwe project)
- *   GROEP_ID           doc-ID van de al aangemaakte Sint-Eduardus-groep in `groepen` (nieuw project)
- *   ORGANISATIE_ID     doc-ID van de organisatie waaronder scouting-brede kentekens/mijlpalen komen (optioneel)
+ *   GROEP_ID           doc-ID van de al aangemaakte Sint-Eduardus-groep in `groepen` (nieuw project).
+ *                      Optioneel als je enkel bewegingsbrede data wil (her)migreren: laat leeg om
+ *                      groep-gebonden data (fiches, foto's, scans, locaties, links, groep-mijlpalen...)
+ *                      helemaal over te slaan -- handig als de groep zelf al eerder gemigreerd is en
+ *                      je nadien enkel nog kentekens/scouting-mijlpalen wil toevoegen.
+ *   ORGANISATIE_ID     doc-ID van de organisatie waaronder scouting-brede kentekens/mijlpalen komen.
+ *                      Optioneel als je enkel groep-gebonden data migreert. Minstens één van
+ *                      GROEP_ID/ORGANISATIE_ID is verplicht -- anders is er niets te migreren.
  *   FOTO_LIMIT         optioneel: migreer enkel de eerste N foto's (vriendenboekje/fotos/...)
  *                      -- zowel het Firestore-document als het bijhorende bestand, zodat een
  *                      testrun geen kapotte afbeeldingen oplevert. Scans/kentekens/mijlpalen-
@@ -226,7 +232,7 @@ async function migreerMijlpalen(
   doelDb: FirebaseFirestore.Firestore,
   bronBucket: Bucket,
   doelBucket: Bucket,
-  groepId: string,
+  groepId: string | null,
   organisatieId: string | null,
   skipStorage: boolean
 ) {
@@ -234,6 +240,7 @@ async function migreerMijlpalen(
   let groepTeller = 0;
   let scoutingTeller = 0;
   let overgeslagen = 0;
+  let groepOvergeslagen = 0;
   const afbeeldingTeller = { gekopieerd: 0, overgeslagen: 0, fouten: 0 };
 
   for (const d of snap.docs) {
@@ -271,6 +278,10 @@ async function migreerMijlpalen(
       await doelDb.collection("organisaties").doc(organisatieId).collection("mijlpalen").doc(d.id).set({ ...data, afbeeldingUrl, afbeeldingPath });
       scoutingTeller += 1;
     } else {
+      if (!groepId) {
+        groepOvergeslagen += 1;
+        continue;
+      }
       let afbeeldingUrl = data.afbeeldingUrl ?? null;
       let afbeeldingPath = data.afbeeldingPath ?? null;
       if (!skipStorage && data.afbeeldingPath) {
@@ -293,6 +304,9 @@ async function migreerMijlpalen(
   }
   if (overgeslagen > 0) {
     console.warn(`milestones: ${overgeslagen} scouting-mijlpalen overgeslagen (geen ORGANISATIE_ID opgegeven).`);
+  }
+  if (groepOvergeslagen > 0) {
+    console.warn(`milestones: ${groepOvergeslagen} groep-mijlpalen overgeslagen (geen GROEP_ID opgegeven).`);
   }
 }
 
@@ -394,12 +408,15 @@ let bronApp: ReturnType<typeof initApp>;
 let doelApp: ReturnType<typeof initApp>;
 
 async function main() {
-  const groepId = vereist("GROEP_ID");
-  const organisatieId = process.env.ORGANISATIE_ID || null;
+  const groepId = process.env.GROEP_ID?.trim() || null;
+  const organisatieId = process.env.ORGANISATIE_ID?.trim() || null;
   const fotoLimitRaw = process.env.FOTO_LIMIT?.trim();
   const fotoLimit = fotoLimitRaw ? parseInt(fotoLimitRaw, 10) : null;
   const skipStorage = process.env.SKIP_STORAGE?.trim().toLowerCase() === "true";
 
+  if (!groepId && !organisatieId) {
+    throw new Error("Geef minstens GROEP_ID of ORGANISATIE_ID op -- anders is er niets om te migreren.");
+  }
   if (fotoLimitRaw && (fotoLimit == null || Number.isNaN(fotoLimit) || fotoLimit < 0)) {
     throw new Error(`FOTO_LIMIT moet een positief getal zijn, kreeg "${fotoLimitRaw}".`);
   }
@@ -413,15 +430,21 @@ async function main() {
   const doelBucket = getStorage(doelApp).bucket();
 
   console.log(
-    `Migratie start -> groepId=${groepId}, organisatieId=${organisatieId ?? "(geen)"}, ` +
+    `Migratie start -> groepId=${groepId ?? "(geen)"}, organisatieId=${organisatieId ?? "(geen)"}, ` +
       `FOTO_LIMIT=${fotoLimit ?? "(geen, volledig)"}, SKIP_STORAGE=${skipStorage}`
   );
 
-  await migreerGroepCollecties(bronDb, doelDb, groepId);
-  await migreerEntries(bronDb, doelDb, bronBucket, doelBucket, groepId, skipStorage);
+  if (groepId) {
+    await migreerGroepCollecties(bronDb, doelDb, groepId);
+    await migreerEntries(bronDb, doelDb, bronBucket, doelBucket, groepId, skipStorage);
+  } else {
+    console.log("GROEP_ID niet opgegeven -- groep-gebonden data (fiches, foto's, scans, locaties, links, ...) wordt overgeslagen.");
+  }
   await migreerMijlpalen(bronDb, doelDb, bronBucket, doelBucket, groepId, organisatieId, skipStorage);
   await migreerKentekens(bronDb, doelDb, bronBucket, doelBucket, organisatieId, skipStorage);
-  await migreerFotos(bronDb, doelDb, bronBucket, doelBucket, groepId, fotoLimit, skipStorage);
+  if (groepId) {
+    await migreerFotos(bronDb, doelDb, bronBucket, doelBucket, groepId, fotoLimit, skipStorage);
+  }
 
   console.log("Migratie voltooid.");
 }

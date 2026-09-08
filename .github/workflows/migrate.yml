@@ -12,15 +12,20 @@ name: Migreer Sint-Eduardus-data
 # eerst foto_limit om een kleine testbatch te migreren en te controleren
 # voor je de rest (leeg laten = alles) draait -- een volgende run slaat
 # foto's die er al staan gewoon over, dus dat kost dan niets extra.
+#
+# groep_id en organisatie_id zijn allebei optioneel, maar minstens één
+# moet ingevuld zijn: laat groep_id leeg om enkel bewegingsbrede data
+# (kentekens/scouting-mijlpalen, via organisatie_id) te (her)migreren
+# zonder de al eerder gemigreerde groep-data opnieuw aan te raken.
 on:
   workflow_dispatch:
     inputs:
       groep_id:
-        description: "Doc-ID van de Sint-Eduardus-groep in de 'groepen'-collectie (nieuw project)"
-        required: true
+        description: "Doc-ID van de groep in de 'groepen'-collectie (nieuw project). Leeg laten om enkel bewegingsbrede data te (her)migreren -- groep-gebonden data wordt dan overgeslagen. Minstens groep_id of organisatie_id is verplicht."
+        required: false
         type: string
       organisatie_id:
-        description: "Doc-ID van de organisatie voor kentekens/scouting-mijlpalen (optioneel, leeg = overslaan)"
+        description: "Doc-ID van de organisatie voor kentekens/scouting-mijlpalen. Leeg laten om enkel groep-gebonden data te migreren. Minstens groep_id of organisatie_id is verplicht."
         required: false
         type: string
       foto_limit:
