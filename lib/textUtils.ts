@@ -13,3 +13,30 @@ export function toTextArray(value: string[] | string | undefined | null): string
 export function toDisplayArray(value: string[] | string | undefined | null): string[] {
   return toTextArray(value).filter(Boolean);
 }
+
+export interface VeldGroep<T> {
+  label: string;
+  entries: T[];
+}
+
+/**
+ * Groepeert entries op een veld dat een lijst van waarden bevat (bv. meerdere
+ * gerechten of kampplaatsen per entry) -- ongeacht of het veld al een array
+ * is of nog een oudere, losse string. Gesorteerd van meest naar minst vermeld.
+ */
+export function groupByArrayField<T>(entries: T[], key: keyof T): VeldGroep<T>[] {
+  const groups: Record<string, VeldGroep<T>> = {};
+  entries.forEach((entry) => {
+    const raw = entry[key];
+    if (!raw) return;
+    const lijst = Array.isArray(raw) ? (raw as string[]) : [raw as string];
+    lijst.forEach((item) => {
+      const trimmed = (item || "").trim();
+      if (!trimmed) return;
+      const norm = trimmed.toLowerCase();
+      if (!groups[norm]) groups[norm] = { label: trimmed, entries: [] };
+      groups[norm].entries.push(entry);
+    });
+  });
+  return Object.values(groups).sort((a, b) => b.entries.length - a.entries.length);
+}

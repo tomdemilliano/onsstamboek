@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { fontImports } from "@/lib/theme";
 import "./globals.css";
+import "leaflet/dist/leaflet.css";
 
 export const metadata: Metadata = {
   title: "onsstamboek",

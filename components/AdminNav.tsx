@@ -10,7 +10,10 @@ const SECTIES = [
   { href: "/beheer", label: "Dashboard", exact: true },
   { href: "/beheer/vriendenboek", label: "Vriendenboek" },
   { href: "/beheer/tijdlijn", label: "Tijdlijn" },
+  { href: "/beheer/kampplaatsen", label: "Kampplaatsen" },
   { href: "/beheer/fotos", label: "Foto's" },
+  { href: "/beheer/gerechten", label: "Gerechten" },
+  { href: "/beheer/links", label: "Links" },
   { href: "/beheer/instellingen", label: "Instellingen" },
 ];
 

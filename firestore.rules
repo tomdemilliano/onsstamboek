@@ -147,6 +147,10 @@ service cloud.firestore {
     match /extraLocations/{locationId} {
       allow read: if resource.data.status == 'published' || isBeheerderVan(resource.data.groepId);
       allow write: if isBeheerderVan(resource.data.groepId);
+      // Apart van de regel hierboven: `resource` bestaat nog niet bij een
+      // create, dus die regel kan een NIEUW document niet dekken -- vandaar
+      // deze eigen create-regel op `request.resource.data.groepId`.
+      allow create: if isBeheerderVan(request.resource.data.groepId);
 
       allow create: if request.auth == null
         && request.resource.data.groepId is string
