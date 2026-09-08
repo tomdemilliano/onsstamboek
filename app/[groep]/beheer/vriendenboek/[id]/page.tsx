@@ -47,6 +47,7 @@ export default function BewerkFichePage(props: PageProps<"/[groep]/beheer/vriend
   const tabs = [
     { href: `${basis}/beheer/vriendenboek`, label: "Overzicht", exact: true },
     { href: `${basis}/beheer/vriendenboek/nieuw`, label: "+ Fiche toevoegen" },
+    { href: `${basis}/beheer/vriendenboek/bulk-upload`, label: "+ Meerdere scans" },
     { href: `${basis}/beheer/vriendenboek/wijzigingen`, label: "✏️ Wijzigingsvoorstellen" },
   ];
 
