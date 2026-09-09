@@ -6,7 +6,11 @@ import { useGroep } from "@/lib/groepContext";
 import { GroepFactory, OrganisatieFactory, PhotoFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import { LANDING_ASPECT_RATIO, landingsafbeeldingStyle, normaliseerPositie } from "@/lib/landingsafbeelding";
+import DasIcon from "@/components/DasIcon";
 import type { Groep, Organisatie, Photo, WithId } from "@/types/models";
+
+const STANDAARD_DASKLEUR_1 = "#3E5B45";
+const STANDAARD_DASKLEUR_2 = "#F4B860";
 
 export default function GroepInstellingen() {
   const groep = useGroep();
@@ -18,6 +22,9 @@ export default function GroepInstellingen() {
   const [oprichtingsjaar, setOprichtingsjaar] = useState(groep.oprichtingsjaar?.toString() ?? "");
   const [organisatieId, setOrganisatieId] = useState(groep.organisatieId ?? "");
   const [organisaties, setOrganisaties] = useState<WithId<Organisatie>[]>([]);
+  const [toonDas, setToonDas] = useState(Boolean(groep.dasKleur1 && groep.dasKleur2));
+  const [dasKleur1, setDasKleur1] = useState(groep.dasKleur1 || STANDAARD_DASKLEUR_1);
+  const [dasKleur2, setDasKleur2] = useState(groep.dasKleur2 || STANDAARD_DASKLEUR_2);
   const [bezig, setBezig] = useState(false);
   const [opgeslagen, setOpgeslagen] = useState(false);
 
@@ -48,6 +55,8 @@ export default function GroepInstellingen() {
         contactEmail,
         oprichtingsjaar: oprichtingsjaar ? Number(oprichtingsjaar) : null,
         organisatieId: organisatieId || null,
+        dasKleur1: toonDas ? dasKleur1 : null,
+        dasKleur2: toonDas ? dasKleur2 : null,
       });
       setOpgeslagen(true);
       router.refresh();
@@ -214,6 +223,26 @@ export default function GroepInstellingen() {
               </option>
             ))}
           </select>
+        </Veld>
+
+        <Veld label="Das" hint="Bv. bij Scouts en Gidsen Vlaanderen heeft elke groep een das in 2 kleuren -- te zien naast de groepsnaam op de publieke site.">
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 14, color: colors.ink, cursor: "pointer" }}>
+            <input type="checkbox" checked={toonDas} onChange={(e) => setToonDas(e.target.checked)} />
+            Toon een das in de kleuren van de groep
+          </label>
+          {toonDas && (
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 10, flexWrap: "wrap" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>
+                Kleur 1
+                <input type="color" value={dasKleur1} onChange={(e) => setDasKleur1(e.target.value)} style={kleurInputStyle} />
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>
+                Kleur 2
+                <input type="color" value={dasKleur2} onChange={(e) => setDasKleur2(e.target.value)} style={kleurInputStyle} />
+              </label>
+              <DasIcon kleur1={dasKleur1} kleur2={dasKleur2} maat={44} />
+            </div>
+          )}
         </Veld>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -421,4 +450,14 @@ const inputStyle: React.CSSProperties = {
   fontSize: 14,
   color: colors.ink,
   boxSizing: "border-box",
+};
+
+const kleurInputStyle: React.CSSProperties = {
+  width: 44,
+  height: 32,
+  padding: 2,
+  borderRadius: radius.input,
+  border: `1px solid ${colors.line}`,
+  background: colors.white,
+  cursor: "pointer",
 };

@@ -39,6 +39,14 @@ export interface Groep {
   landingsafbeeldingPositie?: { x: number; y: number; zoom: number } | null;
   oprichtingsjaar?: number | null;
   organisatieId?: string | null;
+  /**
+   * De das van de groep (bv. bij Scouts en Gidsen Vlaanderen: elke groep
+   * heeft een das in 2 kleuren), getoond naast de groepsnaam op de publieke
+   * site. Beide kleuren (hex) moeten ingevuld zijn voor de das getoond
+   * wordt -- geen apart aan/uit-veld nodig.
+   */
+  dasKleur1?: string | null;
+  dasKleur2?: string | null;
   status: GroepStatus;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;

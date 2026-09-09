@@ -9,6 +9,7 @@ import { colors, fonts, radius } from "@/lib/theme";
 import { clearGroepCookie, getGroepCookie } from "@/lib/groepCookie";
 import { watchAuth, isSysteembeheerder, logout } from "@/lib/auth";
 import { GroepFactory, LidmaatschapFactory } from "@/lib/dbSchema";
+import DasIcon from "@/components/DasIcon";
 import type { Groep, WithId } from "@/types/models";
 
 const LINKS = [
@@ -273,13 +274,14 @@ export default function PublicNav() {
       {/* Volledige weergave -- vanaf een breder scherm */}
       <div className="vb-nav-groot">
         <div style={{ textAlign: "center", paddingTop: 24 }}>
-          <Link href={basis} style={{ textDecoration: "none" }}>
+          <Link href={basis} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center", flexWrap: "wrap", gap: 12 }}>
             {groep.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={groep.logoUrl} alt={groep.naam} style={{ display: "inline-block", width: "100%", maxWidth: 420, height: "auto" }} />
             ) : (
               <span style={{ fontFamily: fonts.display, fontSize: 36, fontWeight: 700, color: colors.ink }}>{groep.naam}</span>
             )}
+            {groep.dasKleur1 && groep.dasKleur2 && <DasIcon kleur1={groep.dasKleur1} kleur2={groep.dasKleur2} maat={48} />}
           </Link>
         </div>
 
@@ -335,6 +337,7 @@ export default function PublicNav() {
           <Link href={basis} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
             <Kampvuurtje maat={26} />
             <span style={{ fontFamily: fonts.display, fontSize: 15, fontWeight: 700, color: colors.ink }}>{groep.naam}</span>
+            {groep.dasKleur1 && groep.dasKleur2 && <DasIcon kleur1={groep.dasKleur1} kleur2={groep.dasKleur2} maat={24} />}
           </Link>
           <button
             onClick={() => setMenuOpen((v) => !v)}
