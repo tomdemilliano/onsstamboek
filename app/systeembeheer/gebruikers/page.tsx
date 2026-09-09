@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { auth } from "@/lib/firebase";
+import { GroepFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
+import type { Groep, WithId } from "@/types/models";
 
 interface Gebruiker {
   uid: string;
@@ -14,11 +16,16 @@ interface Gebruiker {
   aantalGroepen: number;
 }
 
+type NieuwType = "groepsbeheerder" | "systeembeheerder";
+
 export default function GebruikersPage() {
   const [gebruikers, setGebruikers] = useState<Gebruiker[] | null>(null);
+  const [groepen, setGroepen] = useState<WithId<Groep>[]>([]);
   const [fout, setFout] = useState<string | null>(null);
 
   const [nieuwEmail, setNieuwEmail] = useState("");
+  const [nieuwType, setNieuwType] = useState<NieuwType>("groepsbeheerder");
+  const [nieuwGroepId, setNieuwGroepId] = useState("");
   const [uitnodigenBezig, setUitnodigenBezig] = useState(false);
   const [uitnodigenBericht, setUitnodigenBericht] = useState<string | null>(null);
 
@@ -51,6 +58,7 @@ export default function GebruikersPage() {
 
   useEffect(() => {
     load();
+    GroepFactory.getAll().then(setGroepen);
   }, []);
 
   async function uitnodigen(e: React.FormEvent) {
@@ -58,18 +66,27 @@ export default function GebruikersPage() {
     if (!auth.currentUser) return;
     setFout(null);
     setUitnodigenBericht(null);
+    if (nieuwType === "groepsbeheerder" && !nieuwGroepId) {
+      setFout("Kies een groep voor deze groepsbeheerder.");
+      return;
+    }
     setUitnodigenBezig(true);
     try {
       const idToken = await auth.currentUser.getIdToken();
       const res = await fetch("/api/systeembeheer/gebruikers", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify({ email: nieuwEmail.trim() }),
+        body: JSON.stringify({
+          email: nieuwEmail.trim(),
+          type: nieuwType,
+          ...(nieuwType === "groepsbeheerder" ? { groepId: nieuwGroepId } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Uitnodigen mislukt");
       setUitnodigenBericht(data.opnieuwUitgenodigd ? `Uitnodiging opnieuw verstuurd naar ${data.email}.` : `Uitnodiging verstuurd naar ${data.email}.`);
       setNieuwEmail("");
+      setNieuwGroepId("");
       await load();
     } catch (err) {
       setFout(err instanceof Error ? err.message : "Uitnodigen mislukt");
@@ -88,6 +105,27 @@ export default function GebruikersPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
         body: JSON.stringify({ disabled: !gebruiker.disabled }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Wijzigen mislukt");
+      await load();
+    } catch (err) {
+      setFout(err instanceof Error ? err.message : "Wijzigen mislukt");
+    } finally {
+      setActieBezig(null);
+    }
+  }
+
+  async function systeembeheerderWisselen(gebruiker: Gebruiker) {
+    if (!auth.currentUser) return;
+    setFout(null);
+    setActieBezig(gebruiker.uid);
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch(`/api/systeembeheer/gebruikers/${gebruiker.uid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ systeembeheerder: !gebruiker.systeembeheerder }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Wijzigen mislukt");
@@ -120,11 +158,13 @@ export default function GebruikersPage() {
     }
   }
 
+  const eigenUid = auth.currentUser?.uid;
+
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: "32px 20px 80px" }}>
       <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Gebruikers</h1>
       <p style={{ fontFamily: fonts.body, fontSize: 14, color: colors.inkMuted, marginBottom: 28 }}>
-        Alle accounts op het platform. Een nieuwe gebruiker krijgt een uitnodigingsmail om zelf een wachtwoord in te stellen -- ken je account daarna toe aan een groep via de detailpagina van die groep (sectie &quot;Groepsbeheerders&quot;).
+        Alle accounts op het platform. Een nieuwe gebruiker krijgt een uitnodigingsmail om zelf een wachtwoord in te stellen.
       </p>
 
       <form
@@ -143,12 +183,28 @@ export default function GebruikersPage() {
             required
             style={{ ...inputStyle, flex: 1, minWidth: 220 }}
           />
+          <select value={nieuwType} onChange={(e) => setNieuwType(e.target.value as NieuwType)} style={{ ...inputStyle, width: 180 }}>
+            <option value="groepsbeheerder">Groepsbeheerder</option>
+            <option value="systeembeheerder">Systeembeheerder</option>
+          </select>
+          {nieuwType === "groepsbeheerder" && (
+            <select value={nieuwGroepId} onChange={(e) => setNieuwGroepId(e.target.value)} required style={{ ...inputStyle, width: 200 }}>
+              <option value="">— kies een groep —</option>
+              {groepen.map((groep) => (
+                <option key={groep.id} value={groep.id}>
+                  {groep.naam}
+                </option>
+              ))}
+            </select>
+          )}
           <button type="submit" disabled={uitnodigenBezig} style={btn(colors.forest)}>
             {uitnodigenBezig ? "Bezig..." : "✉️ Uitnodigen"}
           </button>
         </div>
         <p style={{ fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted, margin: 0 }}>
-          Bestaat er al een account met dit e-mailadres, dan wordt gewoon een nieuwe wachtwoord-instellink verstuurd.
+          Een groepsbeheerder wordt meteen aan de gekozen groep gekoppeld -- zonder groep kan die nergens een
+          beheerpagina laden. Bestaat het e-mailadres al, dan wordt gewoon een nieuwe wachtwoord-instellink verstuurd
+          (en, indien gekozen, de rol toegevoegd/aangepast).
         </p>
         {uitnodigenBericht && <div style={{ color: colors.forest, fontFamily: fonts.body, fontSize: 13, fontWeight: 600 }}>✓ {uitnodigenBericht}</div>}
       </form>
@@ -171,7 +227,15 @@ export default function GebruikersPage() {
                 {gebruiker.laatsteAanmelding ? ` -- laatst aangemeld: ${new Date(gebruiker.laatsteAanmelding).toLocaleDateString("nl-BE")}` : " -- nog niet aangemeld"}
               </div>
             </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <button
+                onClick={() => systeembeheerderWisselen(gebruiker)}
+                disabled={actieBezig === gebruiker.uid || (gebruiker.systeembeheerder && gebruiker.uid === eigenUid)}
+                title={gebruiker.systeembeheerder && gebruiker.uid === eigenUid ? "Je kan je eigen systeembeheerder-rol niet intrekken." : undefined}
+                style={btnOutline}
+              >
+                {gebruiker.systeembeheerder ? "Systeembeheerder-rol intrekken" : "Systeembeheerder maken"}
+              </button>
               <button onClick={() => statusWisselen(gebruiker)} disabled={actieBezig === gebruiker.uid} style={btnOutline}>
                 {gebruiker.disabled ? "Activeren" : "Deactiveren"}
               </button>

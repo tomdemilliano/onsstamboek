@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { User } from "firebase/auth";
-import { watchAuth, isSysteembeheerder } from "@/lib/auth";
+import { watchAuth, isSysteembeheerder, logout } from "@/lib/auth";
 import { LidmaatschapFactory } from "@/lib/dbSchema";
 import { useGroep } from "@/lib/groepContext";
-import { colors, fonts } from "@/lib/theme";
+import { colors, fonts, radius } from "@/lib/theme";
 
 type Status = "laden" | "toegang" | "geenToegang";
 
@@ -42,9 +43,33 @@ export default function RequireGroepsbeheerder({ children }: { children: React.R
   }
   if (status === "geenToegang") {
     return (
-      <p style={{ padding: "2rem", fontFamily: fonts.body, color: colors.stamp }}>
-        Je bent geen beheerder van {groep.naam}.
-      </p>
+      <div style={{ padding: "2rem", display: "flex", flexDirection: "column", gap: 14, alignItems: "flex-start" }}>
+        <p style={{ fontFamily: fonts.body, color: colors.stamp, margin: 0 }}>
+          Je bent (nog) geen beheerder van {groep.naam}. Vraag de systeembeheerder om je account aan deze groep te
+          koppelen, of meld je aan met een ander account.
+        </p>
+        <div style={{ display: "flex", gap: 10 }}>
+          <Link href="/" style={{ fontFamily: fonts.body, fontSize: 13, color: colors.forest, fontWeight: 600, textDecoration: "none" }}>
+            ← Naar het platform
+          </Link>
+          <button
+            onClick={() => logout().then(() => router.replace("/aanmelden"))}
+            style={{
+              padding: "6px 14px",
+              borderRadius: radius.badge,
+              border: `1px solid ${colors.line}`,
+              background: colors.white,
+              color: colors.ink,
+              fontFamily: fonts.body,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Uitloggen
+          </button>
+        </div>
+      </div>
     );
   }
   return <>{children}</>;
