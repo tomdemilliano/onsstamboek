@@ -89,3 +89,12 @@ body {
     display: block;
   }
 }
+
+/* Decoratieve achtergrond-illustratie op de platform-landingspagina (zie
+   app/page.tsx) -- enkel op schermen met genoeg breedte; op mobiel zou ze
+   ofwel de content overlappen ofwel verdrukt ogen, dus dan gewoon weg. */
+@media (max-width: 900px) {
+  .platform-achtergrondlogo {
+    display: none;
+  }
+}
