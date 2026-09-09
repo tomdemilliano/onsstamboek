@@ -9,6 +9,7 @@ const SECTIES = [
   { href: "/systeembeheer", label: "🏠 Dashboard", exact: true },
   { href: "/systeembeheer/groepen", label: "👥 Groepen" },
   { href: "/systeembeheer/organisaties", label: "🧭 Organisaties" },
+  { href: "/systeembeheer/contact", label: "✉️ Contact" },
 ];
 
 export default function SysteemNav() {

@@ -239,6 +239,20 @@ service cloud.firestore {
         && request.resource.data.gelezen == false;
     }
 
+    // Platform-brede tegenhanger van contactBerichten -- gericht aan de
+    // systeembeheerder, niet aan een groep (zie de landingspagina).
+    match /systeemContactBerichten/{berichtId} {
+      allow read, update, delete: if isSysteembeheerder();
+      allow create: if request.resource.data.naam is string
+        && request.resource.data.naam.size() < 200
+        && request.resource.data.email is string
+        && request.resource.data.email.size() < 200
+        && request.resource.data.bericht is string
+        && request.resource.data.bericht.size() > 0
+        && request.resource.data.bericht.size() < 2000
+        && request.resource.data.gelezen == false;
+    }
+
     match /wijzigingsVoorstellen/{voorstelId} {
       allow read, write: if isBeheerderVan(resource.data.groepId);
       allow create: if request.resource.data.groepId is string

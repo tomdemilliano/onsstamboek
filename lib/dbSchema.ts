@@ -40,6 +40,7 @@ import type {
   Dish,
   Link as GroepLink,
   ContactBericht,
+  SysteemContactBericht,
   Activiteit,
   WijzigingsVoorstel,
   Statistiek,
@@ -1183,6 +1184,38 @@ export const ContactFactory = {
 
   async remove(id: string): Promise<void> {
     await deleteDoc(doc(db, CONTACT, id));
+  },
+};
+
+const SYSTEEM_CONTACT = "systeemContactBerichten";
+
+/** Platform-brede tegenhanger van ContactFactory -- berichten aan de systeembeheerder, niet aan een groep. */
+export const SysteemContactFactory = {
+  async create({ naam, email, bericht }: { naam: string; email: string; bericht: string }): Promise<string> {
+    const docRef = await addDoc(collection(db, SYSTEEM_CONTACT), {
+      naam: naam || "",
+      email: email || "",
+      bericht: bericht || "",
+      gelezen: false,
+      createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+  },
+
+  async getAll(): Promise<WithId<SysteemContactBericht>[]> {
+    const snap = await getDocs(collection(db, SYSTEEM_CONTACT));
+    return docsToArray<SysteemContactBericht>(snap.docs).sort(
+      (a, b) => ((b as unknown as { createdAt?: { seconds: number } }).createdAt?.seconds || 0) -
+        ((a as unknown as { createdAt?: { seconds: number } }).createdAt?.seconds || 0)
+    );
+  },
+
+  async markeerGelezen(id: string): Promise<void> {
+    await updateDoc(doc(db, SYSTEEM_CONTACT, id), { gelezen: true });
+  },
+
+  async remove(id: string): Promise<void> {
+    await deleteDoc(doc(db, SYSTEEM_CONTACT, id));
   },
 };
 

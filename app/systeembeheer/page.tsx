@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { GroepFactory, OrganisatieFactory } from "@/lib/dbSchema";
+import { GroepFactory, OrganisatieFactory, SysteemContactFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 
 interface Stats {
   groepenTotaal: number;
   groepenActief: number;
   organisatiesTotaal: number;
+  contactOngelezen: number;
 }
 
 // Voorlopig een eenvoudig overzicht met platform-brede kerncijfers -- puur
@@ -21,12 +22,13 @@ export default function SysteembeheerDashboard() {
 
   useEffect(() => {
     let actief = true;
-    Promise.all([GroepFactory.getAll(), OrganisatieFactory.getAll()]).then(([groepen, organisaties]) => {
+    Promise.all([GroepFactory.getAll(), OrganisatieFactory.getAll(), SysteemContactFactory.getAll()]).then(([groepen, organisaties, berichten]) => {
       if (!actief) return;
       setStats({
         groepenTotaal: groepen.length,
         groepenActief: groepen.filter((g) => g.status === "actief").length,
         organisatiesTotaal: organisaties.length,
+        contactOngelezen: berichten.filter((b) => !b.gelezen).length,
       });
       setLoading(false);
     });
@@ -44,11 +46,24 @@ export default function SysteembeheerDashboard() {
 
       {loading && <p style={{ fontFamily: fonts.body, color: colors.inkMuted }}>Bezig met laden...</p>}
 
+      {!loading && stats && stats.contactOngelezen > 0 && (
+        <Link href="/systeembeheer/contact" style={{ textDecoration: "none" }}>
+          <div style={{ background: colors.campfireLight, border: `1.5px solid ${colors.campfire}`, borderRadius: radius.card, padding: "14px 18px", display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+            <span style={{ fontSize: 20 }}>✉️</span>
+            <span style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 600, color: colors.ink, flex: 1 }}>
+              {stats.contactOngelezen} nieuw{stats.contactOngelezen === 1 ? "" : "e"} contactbericht{stats.contactOngelezen === 1 ? "" : "en"}
+            </span>
+            <span style={{ fontFamily: fonts.body, fontSize: 13, color: colors.campfire, fontWeight: 600 }}>Bekijken →</span>
+          </div>
+        </Link>
+      )}
+
       {!loading && stats && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 32 }}>
           <StatKaart label="Groepen" waarde={stats.groepenTotaal} icon="👥" href="/systeembeheer/groepen" />
           <StatKaart label="Actieve groepen" waarde={stats.groepenActief} icon="✅" href="/systeembeheer/groepen" />
           <StatKaart label="Organisaties" waarde={stats.organisatiesTotaal} icon="🧭" href="/systeembeheer/organisaties" />
+          <StatKaart label="Contactberichten" waarde={stats.contactOngelezen} icon="✉️" href="/systeembeheer/contact" />
         </div>
       )}
 

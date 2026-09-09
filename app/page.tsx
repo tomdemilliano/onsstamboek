@@ -1,5 +1,6 @@
-import GroepKeuze from "@/components/GroepKeuze";
-import { GroepFactory } from "@/lib/dbSchema";
+import PlatformLanding from "@/components/PlatformLanding";
+import { GroepFactory, OrganisatieFactory } from "@/lib/dbSchema";
+import { fontImports } from "@/lib/theme";
 
 // Deze pagina heeft geen dynamisch route-segment en gebruikt geen
 // cookies()/headers(), dus zou Next.js ze zonder deze regel bij de build
@@ -11,14 +12,13 @@ export const dynamic = "force-dynamic";
 // proxy.ts al rechtstreeks naar hun laatst gekozen groep doorgestuurd --
 // deze pagina is dus vooral voor nieuwe bezoekers en voor "niet jouw groep?"
 // (zie de link in [groep]/layout.tsx).
-export default async function PlatformLanding() {
-  const groepen = await GroepFactory.getActief();
+export default async function PlatformLandingPage() {
+  const [groepen, organisaties] = await Promise.all([GroepFactory.getActief(), OrganisatieFactory.getAll()]);
 
   return (
-    <main style={{ padding: "3rem 1.5rem", textAlign: "center" }}>
-      <h1>onsstamboek</h1>
-      <p>Het vriendenboekje-platform voor scoutsgroepen. Kies je groep:</p>
-      <GroepKeuze groepen={groepen} />
-    </main>
+    <div style={{ minHeight: "100vh" }}>
+      <link rel="stylesheet" href={fontImports} />
+      <PlatformLanding groepen={groepen} organisaties={organisaties} />
+    </div>
   );
 }

@@ -220,6 +220,15 @@ export interface ContactBericht {
   createdAt?: Timestamp;
 }
 
+/** Platform-brede tegenhanger van ContactBericht -- gericht aan de systeembeheerder, niet aan een groep. */
+export interface SysteemContactBericht {
+  naam: string;
+  email: string;
+  bericht: string;
+  gelezen: boolean;
+  createdAt?: Timestamp;
+}
+
 export type ActiviteitType =
   | "foto"
   | "entry"
