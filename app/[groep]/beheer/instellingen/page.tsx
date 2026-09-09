@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useGroep } from "@/lib/groepContext";
 import { GroepFactory, OrganisatieFactory, PhotoFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
-import { LANDING_ASPECT_RATIO, landingsafbeeldingStyle } from "@/lib/landingsafbeelding";
+import { LANDING_ASPECT_RATIO, landingsafbeeldingStyle, normaliseerPositie } from "@/lib/landingsafbeelding";
 import type { Groep, Organisatie, Photo, WithId } from "@/types/models";
 
 export default function GroepInstellingen() {
@@ -232,7 +232,7 @@ export default function GroepInstellingen() {
         <KadreerModal
           groep={groep}
           url={groep.landingsafbeeldingUrl}
-          huidigePositie={groep.landingsafbeeldingPositie ?? { x: 50, y: 50, zoom: 1 }}
+          huidigePositie={normaliseerPositie(groep.landingsafbeeldingPositie)}
           onSluiten={() => setKadreerModalOpen(false)}
           onOpgeslagen={() => {
             setKadreerModalOpen(false);

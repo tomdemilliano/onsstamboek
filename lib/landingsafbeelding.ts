@@ -12,15 +12,26 @@ import type { Groep } from "@/types/models";
 export const LANDING_ASPECT_RATIO = "12 / 5";
 
 /**
+ * Vult x/y/zoom elk apart aan met hun standaardwaarde. Nodig omdat een
+ * kadrering die opgeslagen werd vóór het zoom-veld bestond nog een
+ * object zonder `zoom` kan zijn -- `positie ?? standaard` op het hele
+ * object zou dan niets doen (het object is niet null/undefined, enkel
+ * onvolledig) en `zoom` blijft `undefined`, wat de zoom-slider zonder
+ * `value` laat en de browser die dan standaard in het midden zet i.p.v.
+ * links (bij min=1).
+ */
+export function normaliseerPositie(positie?: Groep["landingsafbeeldingPositie"]): { x: number; y: number; zoom: number } {
+  return { x: positie?.x ?? 50, y: positie?.y ?? 50, zoom: positie?.zoom ?? 1 };
+}
+
+/**
  * CSS voor de <img> zelf: object-fit/object-position dekt de "welk deel
  * van de foto" af, een transform-scale met dezelfde origin voegt de
  * in/uitzoom toe -- zoomen blijft zo altijd gecentreerd op het gekozen
  * focuspunt, in elk kader ter grootte dan ook.
  */
 export function landingsafbeeldingStyle(positie?: Groep["landingsafbeeldingPositie"]): CSSProperties {
-  const x = positie?.x ?? 50;
-  const y = positie?.y ?? 50;
-  const zoom = positie?.zoom ?? 1;
+  const { x, y, zoom } = normaliseerPositie(positie);
   return {
     width: "100%",
     height: "100%",
