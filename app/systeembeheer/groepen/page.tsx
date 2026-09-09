@@ -4,15 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { GroepFactory, OrganisatieFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
+import { naarWebadres } from "@/lib/textUtils";
 import type { Groep, Organisatie, WithId } from "@/types/models";
-
-function slugify(naam: string): string {
-  return naam
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 export default function GroepenPage() {
   const [groepen, setGroepen] = useState<WithId<Groep>[]>([]);
@@ -20,8 +13,8 @@ export default function GroepenPage() {
   const [loading, setLoading] = useState(true);
 
   const [naam, setNaam] = useState("");
-  const [slug, setSlug] = useState("");
-  const [slugAangepast, setSlugAangepast] = useState(false);
+  const [webadres, setWebadres] = useState("");
+  const [webadresAangepast, setWebadresAangepast] = useState(false);
   const [toevoegBezig, setToevoegBezig] = useState(false);
   const [fout, setFout] = useState<string | null>(null);
 
@@ -48,31 +41,31 @@ export default function GroepenPage() {
 
   function handleNaamChange(v: string) {
     setNaam(v);
-    if (!slugAangepast) setSlug(slugify(v));
+    if (!webadresAangepast) setWebadres(naarWebadres(v));
   }
 
   async function handleToevoegen() {
     setFout(null);
-    const veiligeSlug = slugify(slug);
+    const veiligWebadres = naarWebadres(webadres);
     if (!naam.trim()) {
       setFout("Vul een naam in.");
       return;
     }
-    if (!veiligeSlug) {
-      setFout("Vul een geldige slug in (enkel letters, cijfers en koppeltekens).");
+    if (!veiligWebadres) {
+      setFout("Vul een geldig webadres in (enkel letters, cijfers en koppeltekens).");
       return;
     }
     setToevoegBezig(true);
     try {
-      const bestaande = await GroepFactory.getBySlug(veiligeSlug);
+      const bestaande = await GroepFactory.getBySlug(veiligWebadres);
       if (bestaande) {
-        setFout(`De slug "${veiligeSlug}" is al in gebruik door "${bestaande.naam}".`);
+        setFout(`Het webadres "${veiligWebadres}" is al in gebruik door "${bestaande.naam}".`);
         return;
       }
-      await GroepFactory.create({ naam: naam.trim(), slug: veiligeSlug });
+      await GroepFactory.create({ naam: naam.trim(), slug: veiligWebadres });
       setNaam("");
-      setSlug("");
-      setSlugAangepast(false);
+      setWebadres("");
+      setWebadresAangepast(false);
       await load();
     } catch (err) {
       console.error("Aanmaken van groep mislukt:", err);
@@ -91,7 +84,7 @@ export default function GroepenPage() {
     <div style={{ maxWidth: 800, margin: "0 auto", padding: "32px 20px 80px" }}>
       <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Groepen</h1>
       <p style={{ fontFamily: fonts.body, fontSize: 14, color: colors.inkMuted, marginBottom: 28 }}>
-        Alle scoutsgroepen op dit platform. Elke groep krijgt een eigen padsegment (<code>onsstamboek.be/&lt;slug&gt;/...</code>) en beheert zichzelf verder via zijn eigen <code>/beheer</code>.
+        Alle scoutsgroepen op dit platform. Elke groep krijgt een eigen webadres (<code>onsstamboek.be/&lt;webadres&gt;/...</code>) en beheert zichzelf verder via zijn eigen <code>/beheer</code>.
       </p>
 
       <div style={{ background: colors.paperCard, border: `1.5px dashed ${colors.line}`, borderRadius: radius.card, padding: "18px 20px", marginBottom: 28, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -106,12 +99,12 @@ export default function GroepenPage() {
           />
           <input
             type="text"
-            value={slug}
+            value={webadres}
             onChange={(e) => {
-              setSlug(e.target.value);
-              setSlugAangepast(true);
+              setWebadres(e.target.value);
+              setWebadresAangepast(true);
             }}
-            placeholder="slug (bv. sinteduardus)"
+            placeholder="webadres (bv. sinteduardus)"
             style={{ ...inputStyle, width: 220 }}
           />
           <button onClick={handleToevoegen} disabled={toevoegBezig} style={btn(colors.forest)}>
@@ -119,7 +112,7 @@ export default function GroepenPage() {
           </button>
         </div>
         <p style={{ fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted, margin: 0 }}>
-          Overige velden (gemeente, contact, organisatie, oprichtingsjaar, status) vul je aan via de detailpagina na het aanmaken.
+          Het webadres wordt automatisch afgeleid van de naam (spaties weggehaald) -- je kan het hierboven nog aanpassen. Overige velden (gemeente, contact, organisatie, oprichtingsjaar, status) vul je aan via de detailpagina na het aanmaken.
         </p>
         {fout && <div style={{ color: colors.stamp, fontFamily: fonts.body, fontSize: 13 }}>{fout}</div>}
       </div>

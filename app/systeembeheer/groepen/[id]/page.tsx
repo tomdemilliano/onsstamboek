@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { GroepFactory, OrganisatieFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
+import { naarWebadres } from "@/lib/textUtils";
 import type { Groep, GroepStatus, Organisatie, WithId } from "@/types/models";
 
 export default function GroepDetail(props: PageProps<"/systeembeheer/groepen/[id]">) {
@@ -13,7 +14,7 @@ export default function GroepDetail(props: PageProps<"/systeembeheer/groepen/[id
   const [organisaties, setOrganisaties] = useState<WithId<Organisatie>[]>([]);
 
   const [naam, setNaam] = useState("");
-  const [slug, setSlug] = useState("");
+  const [webadres, setWebadres] = useState("");
   const [gemeente, setGemeente] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [oprichtingsjaar, setOprichtingsjaar] = useState("");
@@ -26,7 +27,7 @@ export default function GroepDetail(props: PageProps<"/systeembeheer/groepen/[id
 
   function vulFormulierIn(g: WithId<Groep>) {
     setNaam(g.naam);
-    setSlug(g.slug);
+    setWebadres(g.slug);
     setGemeente(g.gemeente ?? "");
     setContactEmail(g.contactEmail ?? "");
     setOprichtingsjaar(g.oprichtingsjaar?.toString() ?? "");
@@ -57,25 +58,25 @@ export default function GroepDetail(props: PageProps<"/systeembeheer/groepen/[id
   async function opslaan(e: React.FormEvent) {
     e.preventDefault();
     setFout(null);
-    const veiligeSlug = slug.trim().toLowerCase();
-    if (!veiligeSlug.match(/^[a-z0-9-]+$/)) {
-      setFout("De slug mag enkel letters, cijfers en koppeltekens bevatten.");
+    const veiligWebadres = naarWebadres(webadres);
+    if (!veiligWebadres) {
+      setFout("Vul een geldig webadres in (enkel letters, cijfers en koppeltekens).");
       return;
     }
     setBezig(true);
     setOpgeslagen(false);
     try {
-      if (veiligeSlug !== groep?.slug) {
-        const bestaande = await GroepFactory.getBySlug(veiligeSlug);
+      if (veiligWebadres !== groep?.slug) {
+        const bestaande = await GroepFactory.getBySlug(veiligWebadres);
         if (bestaande && bestaande.id !== id) {
-          setFout(`De slug "${veiligeSlug}" is al in gebruik door "${bestaande.naam}".`);
+          setFout(`Het webadres "${veiligWebadres}" is al in gebruik door "${bestaande.naam}".`);
           setBezig(false);
           return;
         }
       }
       await GroepFactory.update(id, {
         naam,
-        slug: veiligeSlug,
+        slug: veiligWebadres,
         gemeente,
         contactEmail,
         oprichtingsjaar: oprichtingsjaar ? Number(oprichtingsjaar) : null,
@@ -119,8 +120,8 @@ export default function GroepDetail(props: PageProps<"/systeembeheer/groepen/[id
           <input value={naam} onChange={(e) => setNaam(e.target.value)} required style={inputStyle} />
         </Veld>
 
-        <Veld label="Slug" hint={`Bepaalt de publieke URL: onsstamboek.be/${slug || "..."}/... -- wijzigen breekt bestaande gedeelde links naar deze groep.`}>
-          <input value={slug} onChange={(e) => setSlug(e.target.value)} required style={inputStyle} />
+        <Veld label="Webadres" hint={`Bepaalt de publieke URL: onsstamboek.be/${webadres || "..."}/... -- wijzigen breekt bestaande gedeelde links naar deze groep.`}>
+          <input value={webadres} onChange={(e) => setWebadres(e.target.value)} required style={inputStyle} />
         </Veld>
 
         <Veld label="Gemeente">

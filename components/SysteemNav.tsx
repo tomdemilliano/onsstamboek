@@ -6,8 +6,9 @@ import { logout } from "@/lib/auth";
 import { colors, fonts } from "@/lib/theme";
 
 const SECTIES = [
-  { href: "/systeembeheer", label: "🧭 Organisaties", exact: true },
+  { href: "/systeembeheer", label: "🏠 Dashboard", exact: true },
   { href: "/systeembeheer/groepen", label: "👥 Groepen" },
+  { href: "/systeembeheer/organisaties", label: "🧭 Organisaties" },
 ];
 
 export default function SysteemNav() {

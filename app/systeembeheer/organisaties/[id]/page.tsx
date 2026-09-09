@@ -66,7 +66,7 @@ export default function OrganisatieDetail(props: PageProps<"/systeembeheer/organ
 
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", padding: "32px 20px 80px" }}>
-      <Link href="/systeembeheer" style={{ display: "inline-block", marginBottom: 14, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted, textDecoration: "none" }}>
+      <Link href="/systeembeheer/organisaties" style={{ display: "inline-block", marginBottom: 14, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted, textDecoration: "none" }}>
         ← Alle organisaties
       </Link>
       <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 4px" }}>{organisatie.naam}</h1>

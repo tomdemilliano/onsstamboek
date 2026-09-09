@@ -1,4 +1,21 @@
 /**
+ * Leidt een webadres (URL-padsegment) af van een groepsnaam: spaties en
+ * andere niet-URL-vriendelijke tekens weg, kleine letters. Bewust geen
+ * "technische slug" met streepjes op elke woordgrens -- gewoon de naam
+ * aan elkaar geschreven, zodat een beheerder er zelf niet over hoeft na
+ * te denken (kan nadien nog altijd overschreven worden).
+ */
+const DIACRITISCHE_TEKENS = new RegExp("[\\u0300-\\u036f]", "g");
+
+export function naarWebadres(naam: string): string {
+  return naam
+    .normalize("NFD")
+    .replace(DIACRITISCHE_TEKENS, "") // diakritische tekens (e.g. e-met-accent wordt gewone e)
+    .replace(/[^a-zA-Z0-9-]/g, "") // spaties en overige leestekens weg
+    .toLowerCase();
+}
+
+/**
  * Normaliseert een veld dat meerdere losse waarden kan bevatten (activiteiten,
  * kampplaatsen, gerechten...) naar een array met minstens één (mogelijk lege)
  * waarde, zodat formuliercomponenten er altijd veilig doorheen kunnen loopen.
