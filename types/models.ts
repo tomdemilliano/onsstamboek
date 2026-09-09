@@ -42,11 +42,16 @@ export interface Groep {
   /**
    * De das van de groep (bv. bij Scouts en Gidsen Vlaanderen: elke groep
    * heeft een das in 2 kleuren), getoond naast de groepsnaam op de publieke
-   * site. Beide kleuren (hex) moeten ingevuld zijn voor de das getoond
+   * site -- links dasKleur1/2, rechts das2Kleur1/2 (voor groepen die
+   * doorheen de jaren van kleuren veranderden). Is er geen 2de das
+   * ingesteld, dan verschijnt de eerste das aan beide kanten. Binnen elk
+   * paar moeten beide kleuren (hex) ingevuld zijn voor die das getoond
    * wordt -- geen apart aan/uit-veld nodig.
    */
   dasKleur1?: string | null;
   dasKleur2?: string | null;
+  das2Kleur1?: string | null;
+  das2Kleur2?: string | null;
   status: GroepStatus;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;

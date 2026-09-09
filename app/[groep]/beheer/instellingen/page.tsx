@@ -11,6 +11,8 @@ import type { Groep, Organisatie, Photo, WithId } from "@/types/models";
 
 const STANDAARD_DASKLEUR_1 = "#3E5B45";
 const STANDAARD_DASKLEUR_2 = "#F4B860";
+const STANDAARD_DAS2KLEUR_1 = "#8C3B2E";
+const STANDAARD_DAS2KLEUR_2 = "#FBF7EC";
 
 export default function GroepInstellingen() {
   const groep = useGroep();
@@ -25,6 +27,9 @@ export default function GroepInstellingen() {
   const [toonDas, setToonDas] = useState(Boolean(groep.dasKleur1 && groep.dasKleur2));
   const [dasKleur1, setDasKleur1] = useState(groep.dasKleur1 || STANDAARD_DASKLEUR_1);
   const [dasKleur2, setDasKleur2] = useState(groep.dasKleur2 || STANDAARD_DASKLEUR_2);
+  const [toonDas2, setToonDas2] = useState(Boolean(groep.das2Kleur1 && groep.das2Kleur2));
+  const [das2Kleur1, setDas2Kleur1] = useState(groep.das2Kleur1 || STANDAARD_DAS2KLEUR_1);
+  const [das2Kleur2, setDas2Kleur2] = useState(groep.das2Kleur2 || STANDAARD_DAS2KLEUR_2);
   const [bezig, setBezig] = useState(false);
   const [opgeslagen, setOpgeslagen] = useState(false);
 
@@ -57,6 +62,8 @@ export default function GroepInstellingen() {
         organisatieId: organisatieId || null,
         dasKleur1: toonDas ? dasKleur1 : null,
         dasKleur2: toonDas ? dasKleur2 : null,
+        das2Kleur1: toonDas && toonDas2 ? das2Kleur1 : null,
+        das2Kleur2: toonDas && toonDas2 ? das2Kleur2 : null,
       });
       setOpgeslagen(true);
       router.refresh();
@@ -225,23 +232,48 @@ export default function GroepInstellingen() {
           </select>
         </Veld>
 
-        <Veld label="Das" hint="Bv. bij Scouts en Gidsen Vlaanderen heeft elke groep een das in 2 kleuren -- te zien naast de groepsnaam op de publieke site.">
+        <Veld label="Das" hint="Bv. bij Scouts en Gidsen Vlaanderen heeft elke groep een das in 2 kleuren -- te zien naast de groepsnaam op de publieke site, links en rechts van de naam.">
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 14, color: colors.ink, cursor: "pointer" }}>
             <input type="checkbox" checked={toonDas} onChange={(e) => setToonDas(e.target.checked)} />
             Toon een das in de kleuren van de groep
           </label>
           {toonDas && (
-            <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 10, flexWrap: "wrap" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>
-                Kleur 1
-                <input type="color" value={dasKleur1} onChange={(e) => setDasKleur1(e.target.value)} style={kleurInputStyle} />
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 10, flexWrap: "wrap" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>
+                  Kleur 1
+                  <input type="color" value={dasKleur1} onChange={(e) => setDasKleur1(e.target.value)} style={kleurInputStyle} />
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>
+                  Kleur 2
+                  <input type="color" value={dasKleur2} onChange={(e) => setDasKleur2(e.target.value)} style={kleurInputStyle} />
+                </label>
+                <DasIcon kleur1={dasKleur1} kleur2={dasKleur2} maat={44} />
+              </div>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.ink, cursor: "pointer", marginTop: 16 }}>
+                <input type="checkbox" checked={toonDas2} onChange={(e) => setToonDas2(e.target.checked)} />
+                Groep had een andere das doorheen de jaren -- toon een 2de das aan de andere kant van de naam
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>
-                Kleur 2
-                <input type="color" value={dasKleur2} onChange={(e) => setDasKleur2(e.target.value)} style={kleurInputStyle} />
-              </label>
-              <DasIcon kleur1={dasKleur1} kleur2={dasKleur2} maat={44} />
-            </div>
+              {toonDas2 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 10, flexWrap: "wrap" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>
+                    Kleur 1
+                    <input type="color" value={das2Kleur1} onChange={(e) => setDas2Kleur1(e.target.value)} style={kleurInputStyle} />
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>
+                    Kleur 2
+                    <input type="color" value={das2Kleur2} onChange={(e) => setDas2Kleur2(e.target.value)} style={kleurInputStyle} />
+                  </label>
+                  <DasIcon kleur1={das2Kleur1} kleur2={das2Kleur2} maat={44} />
+                </div>
+              )}
+              {!toonDas2 && (
+                <p style={{ fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted, margin: "6px 0 0" }}>
+                  Zonder 2de das verschijnt de das hierboven aan beide kanten van de groepsnaam.
+                </p>
+              )}
+            </>
           )}
         </Veld>
 

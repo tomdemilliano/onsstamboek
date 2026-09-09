@@ -250,6 +250,12 @@ export default function PublicNav() {
   const basis = `/${groep.slug}`;
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Links naast de naam altijd das1 (als ingesteld); rechts das2 als de
+  // groep die instelde, anders gewoon das1 nogmaals (groepen die nooit van
+  // kleur veranderden tonen dan dezelfde das aan beide kanten).
+  const das1 = groep.dasKleur1 && groep.dasKleur2 ? { kleur1: groep.dasKleur1, kleur2: groep.dasKleur2 } : null;
+  const das2 = groep.das2Kleur1 && groep.das2Kleur2 ? { kleur1: groep.das2Kleur1, kleur2: groep.das2Kleur2 } : das1;
+
   function kiesAndereGroep() {
     // Zonder de cookie te wissen zou proxy.ts "/" meteen terugsturen naar
     // deze zelfde groep.
@@ -275,13 +281,14 @@ export default function PublicNav() {
       <div className="vb-nav-groot">
         <div style={{ textAlign: "center", paddingTop: 24 }}>
           <Link href={basis} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center", flexWrap: "wrap", gap: 12 }}>
+            {das1 && <DasIcon kleur1={das1.kleur1} kleur2={das1.kleur2} maat={48} />}
             {groep.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={groep.logoUrl} alt={groep.naam} style={{ display: "inline-block", width: "100%", maxWidth: 420, height: "auto" }} />
             ) : (
               <span style={{ fontFamily: fonts.display, fontSize: 36, fontWeight: 700, color: colors.ink }}>{groep.naam}</span>
             )}
-            {groep.dasKleur1 && groep.dasKleur2 && <DasIcon kleur1={groep.dasKleur1} kleur2={groep.dasKleur2} maat={48} />}
+            {das2 && <DasIcon kleur1={das2.kleur1} kleur2={das2.kleur2} maat={48} />}
           </Link>
         </div>
 
@@ -336,8 +343,9 @@ export default function PublicNav() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 44px 12px 16px" }}>
           <Link href={basis} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
             <Kampvuurtje maat={26} />
+            {das1 && <DasIcon kleur1={das1.kleur1} kleur2={das1.kleur2} maat={24} />}
             <span style={{ fontFamily: fonts.display, fontSize: 15, fontWeight: 700, color: colors.ink }}>{groep.naam}</span>
-            {groep.dasKleur1 && groep.dasKleur2 && <DasIcon kleur1={groep.dasKleur1} kleur2={groep.dasKleur2} maat={24} />}
+            {das2 && <DasIcon kleur1={das2.kleur1} kleur2={das2.kleur2} maat={24} />}
           </Link>
           <button
             onClick={() => setMenuOpen((v) => !v)}
