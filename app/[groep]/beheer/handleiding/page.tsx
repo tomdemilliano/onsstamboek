@@ -5,6 +5,7 @@ import { colors, fonts, radius } from "@/lib/theme";
 // beheerschermen. Bijwerken bij nieuwe functionaliteit in de rest van
 // app/[groep]/beheer/.
 const HOOFDSTUKKEN = [
+  { id: "taken", label: "🎯 Taken van de beheerder" },
   { id: "dashboard", label: "🏠 Dashboard" },
   { id: "vriendenboek", label: "📖 Vriendenboek" },
   { id: "tijdlijn", label: "⏳ Tijdlijn" },
@@ -59,6 +60,39 @@ export default function HandleidingPage() {
           </a>
         ))}
       </nav>
+
+      <Sectie id="taken" titel="🎯 Taken van de beheerder">
+        <P>Kort samengevat komt het beheer van een groep op dit platform neer op:</P>
+        <List
+          items={[
+            <>
+              Ingezonden fiches, foto&apos;s, mijlpalen, kampplaatsen en leidingsploegen <strong>nakijken en
+              goedkeuren of afwijzen</strong> voor ze publiek zichtbaar worden of van toepassing zijn (zie de
+              goedkeuringsflow hierboven).
+            </>,
+            <>
+              Contactberichten en verwijderverzoeken <strong>tijdig opvolgen</strong> -- niemand anders doet dit
+              voor jouw groep.
+            </>,
+            <>
+              <strong>Verantwoordelijk zijn voor de inhoud van je groep.</strong> Jij bepaalt en beheert wat er
+              over jouw groep gepubliceerd staat. De systeembeheerder/het platform kan technisch ingrijpen (bv.
+              bij misbruik), maar draagt zelf geen verantwoordelijkheid over de inhoud van een individuele groep
+              -- die verantwoordelijkheid ligt bij jou als groepsbeheerder.
+            </>,
+            <>
+              Content <strong>verwijderen zodra ze gerapporteerd wordt</strong> als ongepast, onjuist of
+              ongewenst (bv. via een contactbericht of een verwijderverzoek bij een foto).
+            </>,
+            <>
+              Een fiche of foto <strong>verwijderen als de betrokken persoon (of iemand namens hem/haar) daarom
+              vraagt</strong> -- bv. iemand die zelf op een foto staat of over wie een vriendenboekje-fiche gaat.
+              Dit is geen gunst maar een recht (denk AVG/GDPR: recht op verwijdering van persoonsgegevens) en
+              vraagt dus geen verdere discussie.
+            </>,
+          ]}
+        />
+      </Sectie>
 
       <Sectie id="dashboard" titel="🏠 Dashboard">
         <P>
