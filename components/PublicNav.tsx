@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
+import type { User } from "firebase/auth";
 import { useGroep } from "@/lib/groepContext";
 import { colors, fonts, radius } from "@/lib/theme";
-import { clearGroepCookie } from "@/lib/groepCookie";
+import { clearGroepCookie, getGroepCookie } from "@/lib/groepCookie";
+import { watchAuth, isSysteembeheerder, logout } from "@/lib/auth";
+import { GroepFactory, LidmaatschapFactory } from "@/lib/dbSchema";
+import type { Groep, WithId } from "@/types/models";
 
 const LINKS = [
   { href: "/vriendenboekje", label: "Vriendenboekje", icon: "📖" },
@@ -74,6 +78,170 @@ function ContactLink({ basis, naam }: { basis: string; naam: string }) {
   );
 }
 
+const accountIconBasisStyle: React.CSSProperties = {
+  position: "fixed",
+  top: 12,
+  right: 54,
+  zIndex: 50,
+  width: 34,
+  height: 34,
+  borderRadius: "50%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 15,
+  textDecoration: "none",
+  boxShadow: "0 2px 6px rgba(44, 36, 25, 0.12)",
+};
+
+const menuItemStyle: React.CSSProperties = {
+  display: "block",
+  padding: "8px 10px",
+  borderRadius: radius.input,
+  fontFamily: fonts.body,
+  fontSize: 13,
+  fontWeight: 600,
+  color: colors.ink,
+  textDecoration: "none",
+};
+
+/**
+ * Vast icoontje rechtsboven, net naast ContactLink: aanmeldknop voor
+ * groepsbeheerders (en systeembeheerders, die via dezelfde /aanmelden
+ * binnenkomen) als niemand is aangemeld, anders de initialen van de
+ * ingelogde gebruiker met een uitklapmenu (groepsbeheer/systeembeheer
+ * openen, afmelden). Bewust hier i.p.v. op de platform-landingspagina --
+ * dat is de plek waar nu al een vast contact-icoontje staat.
+ */
+function AccountKnop() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [systeembeheerder, setSysteembeheerder] = useState(false);
+  const [mijnGroepen, setMijnGroepen] = useState<WithId<Groep>[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Zelfde patroon als de mobiele menu-sluiting in PublicNav hieronder:
+  // aanpassen tijdens het renderen bij een pad-wijziging, i.p.v. in een
+  // effect (geen overbodige extra render).
+  const [vorigePathname, setVorigePathname] = useState(pathname);
+  if (pathname !== vorigePathname) {
+    setVorigePathname(pathname);
+    setMenuOpen(false);
+  }
+
+  useEffect(() => {
+    return watchAuth((u) => {
+      setUser(u);
+      setMenuOpen(false);
+      if (!u) {
+        setSysteembeheerder(false);
+        setMijnGroepen([]);
+        return;
+      }
+      isSysteembeheerder(u).then(setSysteembeheerder);
+      LidmaatschapFactory.getByUserId(u.uid)
+        .then((lidmaatschappen) => Promise.all(lidmaatschappen.map((l) => GroepFactory.getById(l.groepId))))
+        .then((groepen) => setMijnGroepen(groepen.filter((g): g is WithId<Groep> => g !== null)));
+    });
+  }, []);
+
+  // Nog niet bekend of iemand is aangemeld -- niets tonen i.p.v. even kort
+  // het verkeerde icoon te flitsen.
+  if (user === undefined) return null;
+
+  if (!user) {
+    return (
+      <Link href="/aanmelden" title="Aanmelden voor groepsbeheerders" aria-label="Aanmelden" style={{ ...accountIconBasisStyle, background: colors.paperCard, border: `1.5px solid ${colors.line}` }}>
+        🔑
+      </Link>
+    );
+  }
+
+  const initialen = (user.email || "??").slice(0, 2).toUpperCase();
+  // Enkel lezen terwijl het menu open staat -- er is toch niets aan
+  // gekoppeld zolang niemand op de knop klikt.
+  const cookieSlug = menuOpen ? getGroepCookie() : null;
+  const groepDoel = cookieSlug ? { id: cookieSlug, slug: cookieSlug, naam: "" } : mijnGroepen.length === 1 ? mijnGroepen[0] : null;
+
+  return (
+    <div style={{ position: "fixed", top: 12, right: 54, zIndex: 50 }}>
+      <button
+        onClick={() => setMenuOpen((v) => !v)}
+        aria-label="Account"
+        aria-expanded={menuOpen}
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: "50%",
+          background: colors.forest,
+          color: colors.white,
+          border: "none",
+          fontFamily: fonts.body,
+          fontSize: 12,
+          fontWeight: 700,
+          cursor: "pointer",
+          boxShadow: "0 2px 6px rgba(44, 36, 25, 0.12)",
+        }}
+      >
+        {initialen}
+      </button>
+
+      {menuOpen && (
+        <div
+          style={{
+            position: "absolute",
+            top: 42,
+            right: 0,
+            minWidth: 210,
+            background: colors.white,
+            border: `1px solid ${colors.line}`,
+            borderRadius: radius.card,
+            boxShadow: "0 4px 14px rgba(44, 36, 25, 0.18)",
+            padding: 8,
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+          }}
+        >
+          <div style={{ fontFamily: fonts.body, fontSize: 11, color: colors.inkMuted, padding: "4px 10px 8px", wordBreak: "break-all" }}>{user.email}</div>
+
+          {systeembeheerder && (
+            <Link href="/systeembeheer" style={menuItemStyle}>
+              🧭 Systeembeheer
+            </Link>
+          )}
+
+          {groepDoel && (
+            <Link href={`/${groepDoel.slug}/beheer`} style={menuItemStyle}>
+              ⚙️ Groepsbeheer openen
+            </Link>
+          )}
+          {!groepDoel &&
+            mijnGroepen.length > 1 &&
+            mijnGroepen.map((g) => (
+              <Link key={g.id} href={`/${g.slug}/beheer`} style={menuItemStyle}>
+                ⚙️ {g.naam}
+              </Link>
+            ))}
+          {!groepDoel && mijnGroepen.length === 0 && !systeembeheerder && (
+            <div style={{ fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted, padding: "6px 10px" }}>Nog geen groep gekoppeld.</div>
+          )}
+
+          <div style={{ height: 1, background: colors.line, margin: "4px 4px" }} />
+
+          <button
+            onClick={() => logout().then(() => router.refresh())}
+            style={{ ...menuItemStyle, textAlign: "left", background: "none", border: "none", cursor: "pointer", width: "100%", color: colors.stamp }}
+          >
+            🚪 Afmelden
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PublicNav() {
   const groep = useGroep();
   const router = useRouter();
@@ -100,6 +268,7 @@ export default function PublicNav() {
   return (
     <div>
       <ContactLink basis={basis} naam={groep.naam} />
+      <AccountKnop />
 
       {/* Volledige weergave -- vanaf een breder scherm */}
       <div className="vb-nav-groot">

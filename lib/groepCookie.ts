@@ -19,3 +19,14 @@ export function setGroepCookie(slug: string) {
 export function clearGroepCookie() {
   document.cookie = `${GROEP_COOKIE}=; path=/; max-age=0; samesite=lax`;
 }
+
+/**
+ * Leest de gekozen groep (slug), of `null` als die er niet is. Gebruikt
+ * door het aanmeld-knopje (zie PublicNav) om "Groepsbeheer openen" naar de
+ * laatst bezochte groep te sturen zonder de gebruiker eerst te laten
+ * kiezen.
+ */
+export function getGroepCookie(): string | null {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${GROEP_COOKIE}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
