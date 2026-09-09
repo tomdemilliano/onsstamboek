@@ -16,43 +16,49 @@ export async function GET(request: NextRequest) {
   const auth = await verifieerSysteembeheerder(request);
   if (auth instanceof Response) return auth;
 
-  const gebruikers: {
-    uid: string;
-    email: string | null;
-    disabled: boolean;
-    systeembeheerder: boolean;
-    aangemaaktOp: string | null;
-    laatsteAanmelding: string | null;
-  }[] = [];
+  try {
+    const gebruikers: {
+      uid: string;
+      email: string | null;
+      disabled: boolean;
+      systeembeheerder: boolean;
+      aangemaaktOp: string | null;
+      laatsteAanmelding: string | null;
+    }[] = [];
 
-  let pageToken: string | undefined;
-  do {
-    const result = await adminAuth.listUsers(1000, pageToken);
-    for (const u of result.users) {
-      gebruikers.push({
-        uid: u.uid,
-        email: u.email ?? null,
-        disabled: u.disabled,
-        systeembeheerder: u.customClaims?.systeembeheerder === true,
-        aangemaaktOp: u.metadata.creationTime ?? null,
-        laatsteAanmelding: u.metadata.lastSignInTime ?? null,
-      });
-    }
-    pageToken = result.pageToken;
-  } while (pageToken);
+    let pageToken: string | undefined;
+    do {
+      const result = await adminAuth.listUsers(1000, pageToken);
+      for (const u of result.users) {
+        gebruikers.push({
+          uid: u.uid,
+          email: u.email ?? null,
+          disabled: u.disabled,
+          systeembeheerder: u.customClaims?.systeembeheerder === true,
+          aangemaaktOp: u.metadata.creationTime ?? null,
+          laatsteAanmelding: u.metadata.lastSignInTime ?? null,
+        });
+      }
+      pageToken = result.pageToken;
+    } while (pageToken);
 
-  const lidmaatschapSnap = await adminDb.collection("lidmaatschappen").get();
-  const aantalGroepen = new Map<string, number>();
-  lidmaatschapSnap.docs.forEach((d) => {
-    const userId = d.data().userId as string;
-    aantalGroepen.set(userId, (aantalGroepen.get(userId) || 0) + 1);
-  });
+    const lidmaatschapSnap = await adminDb.collection("lidmaatschappen").get();
+    const aantalGroepen = new Map<string, number>();
+    lidmaatschapSnap.docs.forEach((d) => {
+      const userId = d.data().userId as string;
+      aantalGroepen.set(userId, (aantalGroepen.get(userId) || 0) + 1);
+    });
 
-  gebruikers.sort((a, b) => (a.email || "").localeCompare(b.email || ""));
+    gebruikers.sort((a, b) => (a.email || "").localeCompare(b.email || ""));
 
-  return Response.json({
-    gebruikers: gebruikers.map((g) => ({ ...g, aantalGroepen: aantalGroepen.get(g.uid) || 0 })),
-  });
+    return Response.json({
+      gebruikers: gebruikers.map((g) => ({ ...g, aantalGroepen: aantalGroepen.get(g.uid) || 0 })),
+    });
+  } catch (err) {
+    console.error("gebruikers ophalen mislukt:", err);
+    const details = err instanceof Error ? err.message : String(err);
+    return Response.json({ error: `Laden van gebruikers is mislukt: ${details}` }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -71,10 +77,24 @@ export async function POST(request: NextRequest) {
     const bestaand = await adminAuth.getUserByEmail(schoonEmail);
     uid = bestaand.uid;
     opnieuwUitgenodigd = true;
-  } catch {
-    const nieuw = await adminAuth.createUser({ email: schoonEmail });
-    uid = nieuw.uid;
-    opnieuwUitgenodigd = false;
+  } catch (opzoekFout) {
+    // getUserByEmail gooit ook een fout die niets met "niet gevonden" te
+    // maken heeft (bv. een tijdelijk netwerk-/API-probleem) -- enkel de
+    // eigenlijke "geen account met dit e-mailadres"-fout mag hier een
+    // nieuw account aanmaken, anders verdrinkt een echt probleem stilzwijgend.
+    if (!(opzoekFout as { code?: string })?.code?.includes("user-not-found")) {
+      console.error("uitnodiging: opzoeken van gebruiker mislukt:", opzoekFout);
+      return Response.json({ error: "Opzoeken van het account is mislukt." }, { status: 500 });
+    }
+    try {
+      const nieuw = await adminAuth.createUser({ email: schoonEmail });
+      uid = nieuw.uid;
+      opnieuwUitgenodigd = false;
+    } catch (aanmaakFout) {
+      console.error("uitnodiging: aanmaken van gebruiker mislukt:", aanmaakFout);
+      const details = aanmaakFout instanceof Error ? aanmaakFout.message : String(aanmaakFout);
+      return Response.json({ error: `Aanmaken van het account is mislukt: ${details}` }, { status: 500 });
+    }
   }
 
   let link: string;

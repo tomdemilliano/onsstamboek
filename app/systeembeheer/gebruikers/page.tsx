@@ -33,14 +33,20 @@ export default function GebruikersPage() {
     return auth.currentUser
       .getIdToken()
       .then((idToken) => fetch("/api/systeembeheer/gebruikers", { headers: { Authorization: `Bearer ${idToken}` } }))
-      .then((res) => res.json().then((data) => ({ res, data })))
+      .then((res) =>
+        res
+          .json()
+          .catch(() => null)
+          .then((data) => ({ res, data }))
+      )
       .then(({ res, data }) => {
-        if (!res.ok) {
-          setFout(data.error || "Laden mislukt.");
+        if (!res.ok || !data) {
+          setFout(data?.error || `Laden mislukt (${res.status}).`);
           return;
         }
         setGebruikers(data.gebruikers);
-      });
+      })
+      .catch(() => setFout("Laden mislukt -- controleer je internetverbinding en probeer opnieuw."));
   }
 
   useEffect(() => {
@@ -149,7 +155,7 @@ export default function GebruikersPage() {
 
       {fout && <div style={{ color: colors.stamp, fontFamily: fonts.body, fontSize: 13, marginBottom: 16 }}>{fout}</div>}
 
-      {gebruikers === null && <p style={{ fontFamily: fonts.body, color: colors.inkMuted }}>Bezig met laden...</p>}
+      {gebruikers === null && !fout && <p style={{ fontFamily: fonts.body, color: colors.inkMuted }}>Bezig met laden...</p>}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {gebruikers?.map((gebruiker) => (
