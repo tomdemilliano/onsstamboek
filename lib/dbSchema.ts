@@ -129,6 +129,7 @@ export const GroepFactory = {
     await updateDoc(doc(db, GROEPEN, id), {
       landingsafbeeldingUrl: upload.url,
       landingsafbeeldingPath: upload.path,
+      landingsafbeeldingPositie: null,
       updatedAt: serverTimestamp(),
     });
   },
@@ -143,8 +144,14 @@ export const GroepFactory = {
     await updateDoc(doc(db, GROEPEN, id), {
       landingsafbeeldingUrl: foto.afbeeldingUrl,
       landingsafbeeldingPath: foto.afbeeldingPath,
+      landingsafbeeldingPositie: null,
       updatedAt: serverTimestamp(),
     });
+  },
+
+  /** Focuspunt van de welkomstfoto (zie Groep.landingsafbeeldingPositie) -- laat de beheerder kadreren. */
+  async updateLandingsafbeeldingPositie(id: string, positie: { x: number; y: number }): Promise<void> {
+    await updateDoc(doc(db, GROEPEN, id), { landingsafbeeldingPositie: positie, updatedAt: serverTimestamp() });
   },
 };
 

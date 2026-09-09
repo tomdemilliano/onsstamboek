@@ -35,6 +35,8 @@ export interface Groep {
   logoUrl?: string | null;
   landingsafbeeldingUrl?: string | null;
   landingsafbeeldingPath?: string | null;
+  /** Focuspunt van de welkomstfoto als percentages (0-100), voor CSS object-position -- laat de beheerder kadreren welk deel zichtbaar blijft bij het bijsnijden. */
+  landingsafbeeldingPositie?: { x: number; y: number } | null;
   oprichtingsjaar?: number | null;
   organisatieId?: string | null;
   status: GroepStatus;

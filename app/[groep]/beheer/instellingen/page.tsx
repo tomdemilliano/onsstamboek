@@ -24,6 +24,7 @@ export default function GroepInstellingen() {
   const [landingFout, setLandingFout] = useState<string | null>(null);
   const [fotoKiezerOpen, setFotoKiezerOpen] = useState(false);
   const [fotos, setFotos] = useState<WithId<Photo>[] | null>(null);
+  const [positie, setPositie] = useState(groep.landingsafbeeldingPositie ?? { x: 50, y: 50 });
 
   useEffect(() => {
     let actief = true;
@@ -34,6 +35,18 @@ export default function GroepInstellingen() {
       actief = false;
     };
   }, []);
+
+  // Herstelt de lokale kadrering zodra er een nieuwe welkomstfoto gekozen
+  // wordt (die begint altijd gecentreerd, zie GroepFactory) -- anders zou
+  // deze pagina de kadrering van de vorige foto blijven tonen na een
+  // router.refresh(). Aangepast tijdens het renderen (React's aanbevolen
+  // patroon om state te resetten op een prop-wijziging), niet in een
+  // effect, wat hier een overbodige extra render zou geven.
+  const [vorigeUrl, setVorigeUrl] = useState(groep.landingsafbeeldingUrl);
+  if (groep.landingsafbeeldingUrl !== vorigeUrl) {
+    setVorigeUrl(groep.landingsafbeeldingUrl);
+    setPositie(groep.landingsafbeeldingPositie ?? { x: 50, y: 50 });
+  }
 
   async function opslaan(e: React.FormEvent) {
     e.preventDefault();
@@ -94,6 +107,20 @@ export default function GroepInstellingen() {
     }
   }
 
+  async function kadreren(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const nieuwePositie = {
+      x: Math.round(Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100))),
+      y: Math.round(Math.min(100, Math.max(0, ((e.clientY - rect.top) / rect.height) * 100))),
+    };
+    setPositie(nieuwePositie);
+    try {
+      await GroepFactory.updateLandingsafbeeldingPositie(groep.id, nieuwePositie);
+    } catch (err) {
+      console.error("Opslaan van kadrering mislukt:", err);
+    }
+  }
+
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "32px 20px 80px" }}>
       <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Instellingen</h1>
@@ -109,8 +136,45 @@ export default function GroepInstellingen() {
           Bovenaan de publieke startpagina van de groep, boven de statistieken.
         </p>
         {groep.landingsafbeeldingUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={groep.landingsafbeeldingUrl} alt="" style={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: radius.card, border: `1px solid ${colors.line}` }} />
+          <>
+            <div
+              onClick={kadreren}
+              style={{
+                position: "relative",
+                width: "100%",
+                height: 200,
+                borderRadius: radius.card,
+                overflow: "hidden",
+                border: `1px solid ${colors.line}`,
+                cursor: "crosshair",
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={groep.landingsafbeeldingUrl}
+                alt=""
+                style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${positie.x}% ${positie.y}%`, display: "block" }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  left: `${positie.x}%`,
+                  top: `${positie.y}%`,
+                  transform: "translate(-50%, -50%)",
+                  width: 18,
+                  height: 18,
+                  borderRadius: "50%",
+                  border: "2px solid white",
+                  background: colors.campfire,
+                  boxShadow: "0 0 0 1px rgba(0,0,0,0.35)",
+                  pointerEvents: "none",
+                }}
+              />
+            </div>
+            <p style={{ fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted, margin: 0 }}>
+              Klik op de foto om het belangrijkste deel te kiezen -- dat blijft zichtbaar als de foto op een smaller scherm bijgesneden wordt.
+            </p>
+          </>
         )}
 
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>

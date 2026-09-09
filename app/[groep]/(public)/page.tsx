@@ -87,7 +87,15 @@ export default function GroepLanding() {
         <img
           src={groep.landingsafbeeldingUrl}
           alt=""
-          style={{ width: "100%", maxHeight: 340, objectFit: "cover", borderRadius: radius.card, marginTop: 24, border: `1px solid ${colors.line}` }}
+          style={{
+            width: "100%",
+            maxHeight: 340,
+            objectFit: "cover",
+            objectPosition: `${groep.landingsafbeeldingPositie?.x ?? 50}% ${groep.landingsafbeeldingPositie?.y ?? 50}%`,
+            borderRadius: radius.card,
+            marginTop: 24,
+            border: `1px solid ${colors.line}`,
+          }}
         />
       )}
 
