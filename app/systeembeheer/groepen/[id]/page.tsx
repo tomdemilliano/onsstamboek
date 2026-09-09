@@ -9,6 +9,11 @@ import { colors, fonts, radius } from "@/lib/theme";
 import { naarWebadres } from "@/lib/textUtils";
 import type { Groep, GroepStatus, Organisatie, WithId } from "@/types/models";
 
+interface Beheerder {
+  userId: string;
+  email: string | null;
+}
+
 export default function GroepDetail(props: PageProps<"/systeembeheer/groepen/[id]">) {
   const { id } = use(props.params);
   const router = useRouter();
@@ -33,6 +38,11 @@ export default function GroepDetail(props: PageProps<"/systeembeheer/groepen/[id
   const [verwijderBezig, setVerwijderBezig] = useState(false);
   const [verwijderFout, setVerwijderFout] = useState<string | null>(null);
 
+  const [beheerders, setBeheerders] = useState<Beheerder[] | null>(null);
+  const [nieuwBeheerderEmail, setNieuwBeheerderEmail] = useState("");
+  const [beheerderBezig, setBeheerderBezig] = useState(false);
+  const [beheerderFout, setBeheerderFout] = useState<string | null>(null);
+
   function vulFormulierIn(g: WithId<Groep>) {
     setNaam(g.naam);
     setWebadres(g.slug);
@@ -50,6 +60,25 @@ export default function GroepDetail(props: PageProps<"/systeembeheer/groepen/[id
     if (g) vulFormulierIn(g);
   }
 
+  // Als raw promise-chain (i.p.v. async/await) geschreven zodat dit vanuit
+  // de useEffect hieronder net als de bestaande GroepFactory/OrganisatieFactory-
+  // laadlogica aangeroepen kan worden, zonder de "setState direct in een
+  // effect"-lintregel te triggeren.
+  function laadBeheerders(): Promise<void> {
+    if (!auth.currentUser) return Promise.resolve();
+    return auth.currentUser
+      .getIdToken()
+      .then((idToken) =>
+        fetch(`/api/systeembeheer/lidmaatschap?groepId=${encodeURIComponent(id)}`, {
+          headers: { Authorization: `Bearer ${idToken}` },
+        })
+      )
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) setBeheerders(data.beheerders);
+      });
+  }
+
   useEffect(() => {
     let actief = true;
     Promise.all([GroepFactory.getById(id), OrganisatieFactory.getAll()]).then(([g, orgs]) => {
@@ -58,10 +87,55 @@ export default function GroepDetail(props: PageProps<"/systeembeheer/groepen/[id
       setOrganisaties(orgs);
       if (g) vulFormulierIn(g);
     });
+    laadBeheerders();
     return () => {
       actief = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- laadBeheerders sluit enkel over `id` (al in de deps) en stabiele setters.
   }, [id]);
+
+  async function beheerderToevoegen(e: React.FormEvent) {
+    e.preventDefault();
+    if (!auth.currentUser) return;
+    setBeheerderFout(null);
+    setBeheerderBezig(true);
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch("/api/systeembeheer/lidmaatschap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ groepId: id, email: nieuwBeheerderEmail.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Toevoegen mislukt");
+      setNieuwBeheerderEmail("");
+      await laadBeheerders();
+    } catch (err) {
+      setBeheerderFout(err instanceof Error ? err.message : "Toevoegen mislukt");
+    } finally {
+      setBeheerderBezig(false);
+    }
+  }
+
+  async function beheerderVerwijderen(userId: string) {
+    if (!auth.currentUser) return;
+    setBeheerderFout(null);
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch("/api/systeembeheer/lidmaatschap", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ groepId: id, userId }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Verwijderen mislukt");
+      }
+      await laadBeheerders();
+    } catch (err) {
+      setBeheerderFout(err instanceof Error ? err.message : "Verwijderen mislukt");
+    }
+  }
 
   async function opslaan(e: React.FormEvent) {
     e.preventDefault();
@@ -247,7 +321,62 @@ export default function GroepDetail(props: PageProps<"/systeembeheer/groepen/[id
         -- nodig als GROEP_ID bij het migreren van oude data.
       </p>
 
-      <div style={{ marginTop: 40, background: colors.campfireLight, border: `1.5px dashed ${colors.stamp}`, borderRadius: radius.card, padding: "20px 22px" }}>
+      <div style={{ marginTop: 32, background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "24px 26px" }}>
+        <div style={{ fontFamily: fonts.body, fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: colors.inkMuted, marginBottom: 12 }}>
+          Groepsbeheerders
+        </div>
+
+        {beheerders === null && <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>Bezig met laden...</p>}
+        {beheerders !== null && beheerders.length === 0 && (
+          <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted, marginBottom: 14 }}>
+            Nog geen groepsbeheerder toegewezen.
+          </p>
+        )}
+        {beheerders !== null && beheerders.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+            {beheerders.map((b) => (
+              <div
+                key={b.userId}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "8px 12px", border: `1px solid ${colors.line}`, borderRadius: radius.input }}
+              >
+                <span style={{ fontFamily: fonts.body, fontSize: 14, color: colors.ink }}>
+                  {b.email ?? <em style={{ color: colors.inkMuted }}>onbekend account ({b.userId})</em>}
+                </span>
+                <button
+                  onClick={() => beheerderVerwijderen(b.userId)}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontFamily: fonts.body, fontSize: 12, fontWeight: 600, color: colors.stamp }}
+                >
+                  Verwijderen
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <form onSubmit={beheerderToevoegen} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-start" }}>
+          <input
+            type="email"
+            value={nieuwBeheerderEmail}
+            onChange={(e) => setNieuwBeheerderEmail(e.target.value)}
+            placeholder="e-mailadres van de nieuwe beheerder"
+            required
+            style={{ ...inputStyle, width: 280 }}
+          />
+          <button
+            type="submit"
+            disabled={beheerderBezig}
+            style={{ padding: "10px 18px", borderRadius: radius.badge, border: "none", background: beheerderBezig ? colors.inkMuted : colors.forest, color: colors.white, fontFamily: fonts.body, fontWeight: 600, fontSize: 13, cursor: beheerderBezig ? "default" : "pointer" }}
+          >
+            {beheerderBezig ? "Bezig..." : "Toevoegen"}
+          </button>
+        </form>
+        <p style={{ fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted, marginTop: 8 }}>
+          Er moet al een Firebase Auth-account bestaan voor dit e-mailadres (Firebase Console → Authentication → gebruiker toevoegen) -- dit scherm maakt geen nieuw account aan, enkel het beheerderschap over deze groep.
+        </p>
+        {beheerderFout && <div style={{ color: colors.stamp, fontFamily: fonts.body, fontSize: 13, marginTop: 8 }}>{beheerderFout}</div>}
+      </div>
+
+      <div style={{ marginTop: 32, background: colors.campfireLight, border: `1.5px dashed ${colors.stamp}`, borderRadius: radius.card, padding: "20px 22px" }}>
         <div style={{ fontFamily: fonts.body, fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: colors.stamp, marginBottom: 10 }}>
           Gevaarlijke zone
         </div>
