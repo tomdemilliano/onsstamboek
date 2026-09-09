@@ -95,12 +95,28 @@ export default function GroepLanding() {
       </div>
 
       {!loading && stats && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12, margin: "28px 0" }}>
-          {groep.gemeente && <StatKaart label="Gemeente" waarde={groep.gemeente} icon="📍" />}
-          <StatKaart label="Leden" waarde={stats.leden} icon="📖" />
-          <StatKaart label="Kampplaatsen" waarde={stats.kampplaatsen} icon="🏕️" />
-          <StatKaart label="Leidingsploegen" waarde={stats.leidingsploegen} icon="👥" />
-          <StatKaart label="Foto's" waarde={stats.fotos} icon="📷" />
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, margin: "28px 0" }}>
+          {groep.gemeente && (
+            <div style={{ flex: "1 1 130px" }}>
+              <StatKaart label="Gemeente" waarde={groep.gemeente} icon="📍" />
+            </div>
+          )}
+          {groep.oprichtingsjaar && (
+            <div style={{ flex: "1 1 130px" }}>
+              <StatKaart label="Opgericht in" waarde={groep.oprichtingsjaar} icon="🕰️" />
+            </div>
+          )}
+          <div style={{ flex: "2 1 260px", background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "12px 14px" }}>
+            <div style={{ fontFamily: fonts.display, fontSize: 13, fontWeight: 700, color: colors.forest, textAlign: "center", marginBottom: 8 }}>
+              Wij verzamelden al...
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-around", flexWrap: "wrap", gap: 8 }}>
+              <MiniStat waarde={stats.leden} label="leden" icon="📖" />
+              <MiniStat waarde={stats.kampplaatsen} label="kampplaatsen" icon="🏕️" />
+              <MiniStat waarde={stats.leidingsploegen} label="leidingsploegen" icon="👥" />
+              <MiniStat waarde={stats.fotos} label="foto's" icon="📷" />
+            </div>
+          </div>
         </div>
       )}
 
@@ -138,10 +154,20 @@ export default function GroepLanding() {
 
 function StatKaart({ label, waarde, icon }: { label: string; waarde: number | string; icon: string }) {
   return (
-    <div style={{ background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "16px 12px", textAlign: "center" }}>
+    <div style={{ background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "16px 12px", textAlign: "center", height: "100%", boxSizing: "border-box" }}>
       <div style={{ fontSize: 20, marginBottom: 6 }}>{icon}</div>
       <div style={{ fontFamily: fonts.display, fontSize: 26, fontWeight: 700, color: colors.ink }}>{waarde}</div>
       <div style={{ fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted }}>{label}</div>
+    </div>
+  );
+}
+
+function MiniStat({ waarde, label, icon }: { waarde: number; label: string; icon: string }) {
+  return (
+    <div style={{ textAlign: "center", minWidth: 56 }}>
+      <div style={{ fontSize: 14 }}>{icon}</div>
+      <div style={{ fontFamily: fonts.display, fontSize: 19, fontWeight: 700, color: colors.ink }}>{waarde}</div>
+      <div style={{ fontFamily: fonts.body, fontSize: 10.5, color: colors.inkMuted }}>{label}</div>
     </div>
   );
 }
