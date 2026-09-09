@@ -114,6 +114,17 @@ export const GroepFactory = {
       updatedAt: serverTimestamp(),
     });
   },
+
+  /** Welkomstfoto op de publieke groep-landingspagina -- apart van update() omdat dit een Storage-upload + oud-bestand-opkuis vergt. */
+  async updateLandingsafbeelding(id: string, file: File, bestaandePath?: string | null): Promise<void> {
+    if (bestaandePath) await verwijderAfbeelding(bestaandePath);
+    const upload = await uploadGroepAfbeelding(id, file, "landing", "landing");
+    await updateDoc(doc(db, GROEPEN, id), {
+      landingsafbeeldingUrl: upload.url,
+      landingsafbeeldingPath: upload.path,
+      updatedAt: serverTimestamp(),
+    });
+  },
 };
 
 const ORGANISATIES = "organisaties";

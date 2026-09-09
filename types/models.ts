@@ -34,6 +34,7 @@ export interface Groep {
   contactEmail?: string;
   logoUrl?: string | null;
   landingsafbeeldingUrl?: string | null;
+  landingsafbeeldingPath?: string | null;
   oprichtingsjaar?: number | null;
   organisatieId?: string | null;
   status: GroepStatus;
