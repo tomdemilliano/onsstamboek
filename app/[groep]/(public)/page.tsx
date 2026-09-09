@@ -12,6 +12,7 @@ import {
   OrganisatieMijlpaalFactory,
 } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
+import { LANDING_ASPECT_RATIO, landingsafbeeldingStyle } from "@/lib/landingsafbeelding";
 
 interface Stats {
   leden: number;
@@ -83,20 +84,10 @@ export default function GroepLanding() {
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 20px 100px" }}>
       {groep.landingsafbeeldingUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={groep.landingsafbeeldingUrl}
-          alt=""
-          style={{
-            width: "100%",
-            maxHeight: 340,
-            objectFit: "cover",
-            objectPosition: `${groep.landingsafbeeldingPositie?.x ?? 50}% ${groep.landingsafbeeldingPositie?.y ?? 50}%`,
-            borderRadius: radius.card,
-            marginTop: 24,
-            border: `1px solid ${colors.line}`,
-          }}
-        />
+        <div style={{ width: "100%", aspectRatio: LANDING_ASPECT_RATIO, borderRadius: radius.card, overflow: "hidden", marginTop: 24, border: `1px solid ${colors.line}` }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={groep.landingsafbeeldingUrl} alt="" style={landingsafbeeldingStyle(groep.landingsafbeeldingPositie)} />
+        </div>
       )}
 
       <div style={{ textAlign: "center", padding: "32px 0 8px" }}>

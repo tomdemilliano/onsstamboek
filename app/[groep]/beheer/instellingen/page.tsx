@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useGroep } from "@/lib/groepContext";
 import { GroepFactory, OrganisatieFactory, PhotoFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
+import { LANDING_ASPECT_RATIO, landingsafbeeldingStyle } from "@/lib/landingsafbeelding";
 import type { Groep, Organisatie, Photo, WithId } from "@/types/models";
 
 export default function GroepInstellingen() {
@@ -110,19 +111,9 @@ export default function GroepInstellingen() {
           Bovenaan de publieke startpagina van de groep, boven de statistieken.
         </p>
         {groep.landingsafbeeldingUrl && (
-          <div style={{ position: "relative", width: "100%", height: 160, borderRadius: radius.card, overflow: "hidden", border: `1px solid ${colors.line}` }}>
+          <div style={{ position: "relative", width: "100%", aspectRatio: LANDING_ASPECT_RATIO, borderRadius: radius.card, overflow: "hidden", border: `1px solid ${colors.line}` }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={groep.landingsafbeeldingUrl}
-              alt=""
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                objectPosition: `${groep.landingsafbeeldingPositie?.x ?? 50}% ${groep.landingsafbeeldingPositie?.y ?? 50}%`,
-                display: "block",
-              }}
-            />
+            <img src={groep.landingsafbeeldingUrl} alt="" style={landingsafbeeldingStyle(groep.landingsafbeeldingPositie)} />
             <button
               type="button"
               onClick={() => setKadreerModalOpen(true)}
@@ -241,7 +232,7 @@ export default function GroepInstellingen() {
         <KadreerModal
           groep={groep}
           url={groep.landingsafbeeldingUrl}
-          huidigePositie={groep.landingsafbeeldingPositie ?? { x: 50, y: 50 }}
+          huidigePositie={groep.landingsafbeeldingPositie ?? { x: 50, y: 50, zoom: 1 }}
           onSluiten={() => setKadreerModalOpen(false)}
           onOpgeslagen={() => {
             setKadreerModalOpen(false);
@@ -262,7 +253,7 @@ function KadreerModal({
 }: {
   groep: WithId<Groep>;
   url: string;
-  huidigePositie: { x: number; y: number };
+  huidigePositie: { x: number; y: number; zoom: number };
   onSluiten: () => void;
   onOpgeslagen: () => void;
 }) {
@@ -279,10 +270,11 @@ function KadreerModal({
   }, [onSluiten]);
 
   function bijwerken(clientX: number, clientY: number, rect: DOMRect) {
-    setPositie({
+    setPositie((huidig) => ({
+      ...huidig,
       x: Math.round(Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100))),
       y: Math.round(Math.min(100, Math.max(0, ((clientY - rect.top) / rect.height) * 100))),
-    });
+    }));
   }
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
@@ -341,7 +333,7 @@ function KadreerModal({
           style={{
             position: "relative",
             width: "100%",
-            height: 380,
+            aspectRatio: LANDING_ASPECT_RATIO,
             borderRadius: radius.input,
             overflow: "hidden",
             border: `1px solid ${colors.line}`,
@@ -351,12 +343,7 @@ function KadreerModal({
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={url}
-            alt=""
-            draggable={false}
-            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${positie.x}% ${positie.y}%`, display: "block", pointerEvents: "none" }}
-          />
+          <img src={url} alt="" draggable={false} style={{ ...landingsafbeeldingStyle(positie), pointerEvents: "none" }} />
           <div
             style={{
               position: "absolute",
@@ -372,6 +359,23 @@ function KadreerModal({
               pointerEvents: "none",
               transition: slepen ? "none" : "left 0.08s, top 0.08s",
             }}
+          />
+        </div>
+
+        <p style={{ fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted, margin: 0 }}>
+          Dit kader komt overeen met wat bezoekers te zien krijgen. Sleep om te verschuiven, gebruik de schuifbalk om in of uit te zoomen.
+        </p>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 14 }}>🔍</span>
+          <input
+            type="range"
+            min={1}
+            max={3}
+            step={0.05}
+            value={positie.zoom}
+            onChange={(e) => setPositie((huidig) => ({ ...huidig, zoom: Number(e.target.value) }))}
+            style={{ flex: 1 }}
           />
         </div>
 

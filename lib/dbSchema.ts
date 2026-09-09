@@ -149,8 +149,8 @@ export const GroepFactory = {
     });
   },
 
-  /** Focuspunt van de welkomstfoto (zie Groep.landingsafbeeldingPositie) -- laat de beheerder kadreren. */
-  async updateLandingsafbeeldingPositie(id: string, positie: { x: number; y: number }): Promise<void> {
+  /** Kadrering van de welkomstfoto (zie Groep.landingsafbeeldingPositie) -- laat de beheerder kadreren + in/uitzoomen. */
+  async updateLandingsafbeeldingPositie(id: string, positie: { x: number; y: number; zoom: number }): Promise<void> {
     await updateDoc(doc(db, GROEPEN, id), { landingsafbeeldingPositie: positie, updatedAt: serverTimestamp() });
   },
 };
