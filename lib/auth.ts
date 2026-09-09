@@ -1,9 +1,11 @@
 "use client";
 
 import {
+  confirmPasswordReset,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
+  verifyPasswordResetCode,
   type User,
 } from "firebase/auth";
 import { auth } from "./firebase";
@@ -11,6 +13,19 @@ import { auth } from "./firebase";
 export async function login(email: string, wachtwoord: string): Promise<User> {
   const credential = await signInWithEmailAndPassword(auth, email, wachtwoord);
   return credential.user;
+}
+
+/**
+ * Rondt de uitnodigings-/wachtwoord-instellen-flow af (zie
+ * app/wachtwoord-instellen en app/api/systeembeheer/gebruikers/route.ts,
+ * die de `oobCode` via een Firebase-wachtwoordherstellink verstuurt).
+ * `verifyPasswordResetCode` gooit een fout bij een verlopen/ongeldige code,
+ * nog voor er een wachtwoord wordt weggeschreven.
+ */
+export async function stelWachtwoordIn(oobCode: string, nieuwWachtwoord: string): Promise<string> {
+  const email = await verifyPasswordResetCode(auth, oobCode);
+  await confirmPasswordReset(auth, oobCode, nieuwWachtwoord);
+  return email;
 }
 
 export async function logout(): Promise<void> {

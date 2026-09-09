@@ -82,8 +82,33 @@ single-tenant app -- zo blijft die bestaande site volledig onaangeroerd.
       `.github/workflows/set-systeembeheerder.yml`.
 9. Minstens één groep aanmaken (`groepen`-collectie) -- voorlopig
    handmatig via de Firebase Console of de systeembeheer-UI (self-service
-   onboarding komt pas in een latere fase), en een `lidmaatschappen`-
-   document voor de eerste groepsbeheerder(s).
+   onboarding komt pas in een latere fase). Groepsbeheerders ken je
+   nadien toe via `/systeembeheer/gebruikers` (uitnodigen) + de
+   detailpagina van de groep (sectie "Groepsbeheerders").
+10. **Authentication → Settings → Authorized domains**: voeg je echte
+    domein toe (bv. `onsstamboek.be`) zodra dat gekoppeld is, en het
+    `*.vercel.app`-preview-domein tijdens het testen. Nodig omdat de
+    wachtwoord-instellink uit de uitnodigingsmail (zie hieronder) enkel
+    werkt op een geautoriseerd domein.
+
+## Gebruikers uitnodigen (Resend)
+
+`/systeembeheer/gebruikers` laat de systeembeheerder een gebruiker
+uitnodigen op e-mailadres; die krijgt een link om zelf een wachtwoord in
+te stellen (`app/wachtwoord-instellen`). Het versturen van die e-mail
+gaat via [Resend](https://resend.com):
+
+1. Resend-account aanmaken, een verzenddomein toevoegen (bv.
+   `onsstamboek.be`) en de gevraagde DNS-records (SPF/DKIM) bij je
+   webhost instellen -- pas nadat Resend het domein als geverifieerd
+   toont, kan je er vanaf versturen.
+2. Een API-key aanmaken (Resend-dashboard → API Keys) en als
+   `RESEND_API_KEY` instellen (`.env.local` lokaal, of als Vercel
+   environment variable). Zie ook `.env.example` voor `RESEND_FROM_EMAIL`
+   (optioneel, standaard `Ons Stamboek <noreply@onsstamboek.be>`).
+
+Zonder `RESEND_API_KEY` faalt het uitnodigen met een duidelijke
+foutmelding -- de rest van de app blijft gewoon werken.
 
 ## Migratie van de bestaande Sint-Eduardus-data
 
