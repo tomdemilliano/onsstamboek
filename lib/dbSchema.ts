@@ -115,13 +115,34 @@ export const GroepFactory = {
     });
   },
 
-  /** Welkomstfoto op de publieke groep-landingspagina -- apart van update() omdat dit een Storage-upload + oud-bestand-opkuis vergt. */
+  /**
+   * Welkomstfoto op de publieke groep-landingspagina -- apart van update()
+   * omdat dit een Storage-upload + oud-bestand-opkuis vergt. Verwijdert het
+   * vorige bestand enkel als dat een eigen, dedicated upload was (pad onder
+   * .../landing/): als de vorige welkomstfoto met setLandingsafbeeldingVanFoto
+   * gekozen was, wijst bestaandePath naar een echte foto uit de galerij --
+   * die mag hier nooit mee verwijderd worden.
+   */
   async updateLandingsafbeelding(id: string, file: File, bestaandePath?: string | null): Promise<void> {
-    if (bestaandePath) await verwijderAfbeelding(bestaandePath);
+    if (bestaandePath?.includes("/landing/")) await verwijderAfbeelding(bestaandePath);
     const upload = await uploadGroepAfbeelding(id, file, "landing", "landing");
     await updateDoc(doc(db, GROEPEN, id), {
       landingsafbeeldingUrl: upload.url,
       landingsafbeeldingPath: upload.path,
+      updatedAt: serverTimestamp(),
+    });
+  },
+
+  /** Kiest een reeds opgeladen foto uit de galerij als welkomstfoto -- kopieert niets, verwijst gewoon naar hetzelfde Storage-bestand. */
+  async setLandingsafbeeldingVanFoto(
+    id: string,
+    foto: { afbeeldingUrl: string; afbeeldingPath: string },
+    bestaandePath?: string | null
+  ): Promise<void> {
+    if (bestaandePath?.includes("/landing/")) await verwijderAfbeelding(bestaandePath);
+    await updateDoc(doc(db, GROEPEN, id), {
+      landingsafbeeldingUrl: foto.afbeeldingUrl,
+      landingsafbeeldingPath: foto.afbeeldingPath,
       updatedAt: serverTimestamp(),
     });
   },

@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useGroep } from "@/lib/groepContext";
-import { GroepFactory, OrganisatieFactory } from "@/lib/dbSchema";
+import { GroepFactory, OrganisatieFactory, PhotoFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
-import type { Organisatie, WithId } from "@/types/models";
+import type { Organisatie, Photo, WithId } from "@/types/models";
 
 export default function GroepInstellingen() {
   const groep = useGroep();
@@ -22,6 +22,8 @@ export default function GroepInstellingen() {
 
   const [landingBezig, setLandingBezig] = useState(false);
   const [landingFout, setLandingFout] = useState<string | null>(null);
+  const [fotoKiezerOpen, setFotoKiezerOpen] = useState(false);
+  const [fotos, setFotos] = useState<WithId<Photo>[] | null>(null);
 
   useEffect(() => {
     let actief = true;
@@ -69,6 +71,29 @@ export default function GroepInstellingen() {
     }
   }
 
+  async function openFotoKiezer() {
+    setLandingFout(null);
+    setFotoKiezerOpen(true);
+    if (fotos === null) {
+      setFotos(await PhotoFactory.getPublished(groep.id));
+    }
+  }
+
+  async function fotoKiezen(foto: WithId<Photo>) {
+    setLandingFout(null);
+    setLandingBezig(true);
+    try {
+      await GroepFactory.setLandingsafbeeldingVanFoto(groep.id, foto, groep.landingsafbeeldingPath);
+      setFotoKiezerOpen(false);
+      router.refresh();
+    } catch (err) {
+      console.error("Instellen van welkomstfoto mislukt:", err);
+      setLandingFout("Instellen mislukt, probeer opnieuw.");
+    } finally {
+      setLandingBezig(false);
+    }
+  }
+
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "32px 20px 80px" }}>
       <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Instellingen</h1>
@@ -87,10 +112,55 @@ export default function GroepInstellingen() {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={groep.landingsafbeeldingUrl} alt="" style={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: radius.card, border: `1px solid ${colors.line}` }} />
         )}
-        <label style={{ display: "inline-block", cursor: "pointer", fontFamily: fonts.body, fontSize: 13, fontWeight: 600, color: colors.forestDark }}>
-          {landingBezig ? "Bezig met opladen..." : groep.landingsafbeeldingUrl ? "Vervangen" : "Foto kiezen"}
-          <input type="file" accept="image/*" onChange={landingsafbeeldingKiezen} disabled={landingBezig} style={{ display: "block", marginTop: 6, fontFamily: fonts.body, fontSize: 13 }} />
-        </label>
+
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+          <label style={{ display: "inline-block", cursor: "pointer", fontFamily: fonts.body, fontSize: 13, fontWeight: 600, color: colors.forestDark }}>
+            {landingBezig ? "Bezig..." : groep.landingsafbeeldingUrl ? "Nieuw bestand opladen" : "Bestand opladen"}
+            <input type="file" accept="image/*" onChange={landingsafbeeldingKiezen} disabled={landingBezig} style={{ display: "block", marginTop: 6, fontFamily: fonts.body, fontSize: 13 }} />
+          </label>
+          <button
+            type="button"
+            onClick={openFotoKiezer}
+            disabled={landingBezig}
+            style={{ background: "none", border: "none", cursor: landingBezig ? "default" : "pointer", fontFamily: fonts.body, fontSize: 13, fontWeight: 600, color: colors.forest, textDecoration: "underline", padding: 0 }}
+          >
+            Kiezen uit foto&apos;s
+          </button>
+        </div>
+
+        {fotoKiezerOpen && (
+          <div style={{ borderTop: `1px solid ${colors.line}`, paddingTop: 12 }}>
+            {fotos === null && <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>Bezig met laden...</p>}
+            {fotos !== null && fotos.length === 0 && (
+              <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>Nog geen gepubliceerde foto&apos;s om uit te kiezen.</p>
+            )}
+            {fotos !== null && fotos.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 8, maxHeight: 260, overflowY: "auto" }}>
+                {fotos.map((foto) => (
+                  <button
+                    key={foto.id}
+                    type="button"
+                    onClick={() => fotoKiezen(foto)}
+                    disabled={landingBezig}
+                    style={{
+                      padding: 0,
+                      border: `2px solid ${foto.afbeeldingPath === groep.landingsafbeeldingPath ? colors.forest : "transparent"}`,
+                      borderRadius: radius.input,
+                      overflow: "hidden",
+                      cursor: landingBezig ? "default" : "pointer",
+                      aspectRatio: "1 / 1",
+                      background: colors.line,
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={foto.afbeeldingUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {landingFout && <div style={{ color: colors.stamp, fontFamily: fonts.body, fontSize: 13 }}>{landingFout}</div>}
       </div>
 
