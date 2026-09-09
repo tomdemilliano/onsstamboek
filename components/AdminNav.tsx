@@ -18,6 +18,7 @@ const SECTIES = [
   { href: "/beheer/activiteit", label: "Activiteit", icon: "📝" },
   { href: "/beheer/contact", label: "Contact", icon: "✉️" },
   { href: "/beheer/instellingen", label: "Instellingen", icon: "⚙️" },
+  { href: "/beheer/handleiding", label: "Handleiding", icon: "❓" },
 ];
 
 export default function AdminNav() {
