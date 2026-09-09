@@ -168,6 +168,7 @@ export interface Leidingsploeg {
   takId: string;
   werkingsjaarStart: number;
   leden: LidLeidingsploeg[];
+  goedgekeurd?: boolean;
   updatedAt?: Timestamp;
 }
 

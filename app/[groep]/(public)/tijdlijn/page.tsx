@@ -233,7 +233,7 @@ export default function TijdlijnPage() {
     if (!geselecteerdeLeiding) return;
     setLeidingOpslaanBezig(true);
     try {
-      await LeidingFactory.set(groep.id, geselecteerdeLeiding.takId, geselecteerdeLeiding.werkingsjaarStart, leidingBewerkLeden);
+      await LeidingFactory.setPublic(groep.id, geselecteerdeLeiding.takId, geselecteerdeLeiding.werkingsjaarStart, leidingBewerkLeden);
       const takNaam = takken.find((t) => t.id === geselecteerdeLeiding.takId)?.naam || "(onbekende tak)";
       await ActivityFactory.log(groep.id, {
         type: "leiding",
@@ -253,7 +253,7 @@ export default function TijdlijnPage() {
     if (!nieuwTakId || !jaarNum) return;
     setNieuwOpslaanBezig(true);
     try {
-      await LeidingFactory.set(groep.id, nieuwTakId, jaarNum, nieuwLeden);
+      await LeidingFactory.setPublic(groep.id, nieuwTakId, jaarNum, nieuwLeden);
       const takNaam = takken.find((t) => t.id === nieuwTakId)?.naam || "(onbekende tak)";
       await ActivityFactory.log(groep.id, {
         type: "leiding",
@@ -452,8 +452,8 @@ export default function TijdlijnPage() {
                           <button
                             key={item.id}
                             onClick={() => openLeidingDetail(tak.id, item.werkingsjaarStart)}
-                            title={`${tak.naam} ${werkingsjaarLabel(item.werkingsjaarStart)}`}
-                            style={{ position: "absolute", left: pixelFor(item.werkingsjaarStart), top: 7, transform: "translateX(-50%)", width: 16, height: 16, borderRadius: "50%", background: colors.forest, border: `2px solid ${colors.paperCard}`, cursor: "pointer", padding: 0 }}
+                            title={`${tak.naam} ${werkingsjaarLabel(item.werkingsjaarStart)}${item.goedgekeurd === false ? " (wacht op goedkeuring)" : ""}`}
+                            style={{ position: "absolute", left: pixelFor(item.werkingsjaarStart), top: 7, transform: "translateX(-50%)", width: 16, height: 16, borderRadius: "50%", background: item.goedgekeurd === false ? colors.campfire : colors.forest, border: `2px solid ${colors.paperCard}`, cursor: "pointer", padding: 0 }}
                           />
                         ))}
                       </div>
@@ -471,6 +471,24 @@ export default function TijdlijnPage() {
                 <div>
                   <div style={{ fontFamily: fonts.display, fontSize: 20, fontWeight: 700, color: colors.ink }}>{geselecteerdeLeidingTakNaam}</div>
                   <div style={{ fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>{werkingsjaarLabel(geselecteerdeLeiding.werkingsjaarStart)}</div>
+                  {geselecteerdeLeidingItem?.goedgekeurd === false && (
+                    <div
+                      style={{
+                        display: "inline-block",
+                        marginTop: 6,
+                        fontFamily: fonts.body,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: colors.campfire,
+                        background: colors.campfireLight,
+                        border: `1px solid ${colors.campfire}`,
+                        borderRadius: radius.badge,
+                        padding: "2px 9px",
+                      }}
+                    >
+                      ⏳ Wacht op goedkeuring
+                    </div>
+                  )}
                 </div>
                 <button onClick={() => setGeselecteerdeLeiding(null)} style={{ background: "none", border: "none", fontSize: 18, color: colors.inkMuted, cursor: "pointer" }} aria-label="Sluiten">
                   ✕

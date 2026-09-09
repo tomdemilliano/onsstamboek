@@ -101,6 +101,13 @@ export default function LeidingPage() {
     load();
   }
 
+  async function goedkeuren(item: WithId<Leidingsploeg>) {
+    await LeidingFactory.keurGoed(groep.id, item.takId, item.werkingsjaarStart);
+    load();
+  }
+
+  const goedTeKeuren = leidingLijst.filter((item) => item.goedgekeurd === false);
+
   const perJaar: Record<number, WithId<Leidingsploeg>[]> = {};
   leidingLijst.forEach((item) => {
     if (!perJaar[item.werkingsjaarStart]) perJaar[item.werkingsjaarStart] = [];
@@ -117,6 +124,12 @@ export default function LeidingPage() {
 
       <h2 style={{ fontFamily: fonts.display, fontSize: 22, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Leidingsploegen</h2>
       <p style={{ fontFamily: fonts.body, fontSize: 14, color: colors.inkMuted, marginBottom: 20 }}>De leidingsploeg per tak, per werkingsjaar. Vul een bestaande combinatie opnieuw in om ze te overschrijven/bewerken.</p>
+
+      {goedTeKeuren.length > 0 && (
+        <p style={{ fontFamily: fonts.body, fontSize: 13, fontWeight: 600, color: colors.campfire, marginTop: -12, marginBottom: 20 }}>
+          ⏳ {goedTeKeuren.length} leidingsploeg{goedTeKeuren.length === 1 ? "" : "en"} wacht{goedTeKeuren.length === 1 ? "" : "en"} op goedkeuring -- door een bezoeker aangevuld/gecorrigeerd.
+        </p>
+      )}
 
       {takken.length === 0 && !loading && <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.stamp, marginBottom: 16 }}>Er zijn nog geen takken aangemaakt — ga eerst naar het tabblad &quot;Takken&quot;.</p>}
 
@@ -159,10 +172,31 @@ export default function LeidingPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {perJaar[jaar].map((item) => {
               const takNaam = takken.find((t) => t.id === item.takId)?.naam || "(onbekende tak)";
+              const wachtOpGoedkeuring = item.goedgekeurd === false;
               return (
-                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, flexWrap: "wrap" }}>
+                <div
+                  key={item.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 14px",
+                    background: wachtOpGoedkeuring ? colors.campfireLight : colors.paperCard,
+                    border: `1.5px ${wachtOpGoedkeuring ? "dashed" : "solid"} ${wachtOpGoedkeuring ? colors.campfire : colors.line}`,
+                    borderRadius: radius.card,
+                    flexWrap: "wrap",
+                  }}
+                >
                   <span style={{ fontFamily: fonts.body, fontSize: 13, fontWeight: 700, color: colors.ink, minWidth: 100 }}>{takNaam}</span>
                   <span style={{ flex: 1, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>{(item.leden || []).map((l) => l.naam).join(", ") || <em>geen leiding ingevuld</em>}</span>
+                  {wachtOpGoedkeuring && (
+                    <span style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 600, color: colors.campfire }}>⏳ Wacht op goedkeuring</span>
+                  )}
+                  {wachtOpGoedkeuring && (
+                    <button onClick={() => goedkeuren(item)} style={btn(colors.forest)}>
+                      Goedkeuren
+                    </button>
+                  )}
                   <button onClick={() => bewerken(item)} style={btn(colors.inkMuted)}>
                     Bewerken
                   </button>

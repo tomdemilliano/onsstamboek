@@ -775,12 +775,31 @@ export const LeidingFactory = {
     return docsToArray<Leidingsploeg>(snap.docs);
   },
 
+  /** Beheerder vult/corrigeert een leidingsploeg -- meteen goedgekeurd. */
   async set(groepId: string, takId: string, werkingsjaarStart: number, leden: Leidingsploeg["leden"]): Promise<void> {
     await setDoc(
       doc(db, LEIDING, leidingDocId(groepId, takId, werkingsjaarStart)),
-      { groepId, takId, werkingsjaarStart, leden: leden || [], updatedAt: serverTimestamp() },
+      { groepId, takId, werkingsjaarStart, leden: leden || [], goedgekeurd: true, updatedAt: serverTimestamp() },
       { merge: true }
     );
+  },
+
+  /**
+   * Publieke aanvulling/correctie: meteen zichtbaar (net als bij de andere
+   * crowdsourced flows), maar als "wacht op goedkeuring" tot de beheerder ze
+   * bevestigt via het tabblad Leidingsploegen -- zelfde patroon als
+   * EntryFactory.createPublicSubmission.
+   */
+  async setPublic(groepId: string, takId: string, werkingsjaarStart: number, leden: Leidingsploeg["leden"]): Promise<void> {
+    await setDoc(
+      doc(db, LEIDING, leidingDocId(groepId, takId, werkingsjaarStart)),
+      { groepId, takId, werkingsjaarStart, leden: leden || [], goedgekeurd: false, updatedAt: serverTimestamp() },
+      { merge: true }
+    );
+  },
+
+  async keurGoed(groepId: string, takId: string, werkingsjaarStart: number): Promise<void> {
+    await updateDoc(doc(db, LEIDING, leidingDocId(groepId, takId, werkingsjaarStart)), { goedgekeurd: true });
   },
 
   async getByEntryId(groepId: string, entryId: string): Promise<WithId<Leidingsploeg>[]> {

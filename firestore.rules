@@ -283,10 +283,17 @@ service cloud.firestore {
     }
 
     // -----------------------------------------------------------------
-    // leidingsploegen (volledig crowdsourced binnen een groep)
+    // leidingsploegen (crowdsourced binnen een groep, met goedkeuring)
     // -----------------------------------------------------------------
     match /leidingsploegen/{leidingId} {
       allow read: if true;
+
+      allow write: if isBeheerderVan(resource.data.groepId);
+      allow create: if isBeheerderVan(request.resource.data.groepId);
+
+      // Publieke aanvulling/correctie: meteen zichtbaar, maar altijd als
+      // 'goedgekeurd == false' -- een bezoeker kan zijn eigen wijziging niet
+      // zelf als goedgekeurd markeren, dat doet enkel de beheerder.
       allow create, update: if request.resource.data.groepId is string
         && exists(/databases/$(database)/documents/groepen/$(request.resource.data.groepId))
         && request.resource.data.takId is string
@@ -294,7 +301,8 @@ service cloud.firestore {
         && request.resource.data.werkingsjaarStart > 1900
         && request.resource.data.werkingsjaarStart < 2200
         && request.resource.data.leden is list
-        && request.resource.data.leden.size() < 30;
+        && request.resource.data.leden.size() < 30
+        && request.resource.data.goedgekeurd == false;
       allow delete: if isBeheerderVan(resource.data.groepId);
     }
 

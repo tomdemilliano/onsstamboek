@@ -13,6 +13,7 @@ import {
   WijzigingFactory,
   ContactFactory,
   StatsFactory,
+  LeidingFactory,
 } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import { toTextArray } from "@/lib/textUtils";
@@ -83,7 +84,8 @@ export default function BeheerDashboard() {
       WijzigingFactory.getAll(groep.id),
       ContactFactory.getAll(groep.id),
       StatsFactory.getAll(groep.id),
-    ]).then(([entries, locaties, extraLocaties, mijlpalen, links, fotos, wijzigingen, contactBerichten, bezoeken]) => {
+      LeidingFactory.getAll(groep.id),
+    ]).then(([entries, locaties, extraLocaties, mijlpalen, links, fotos, wijzigingen, contactBerichten, bezoeken, leidingsploegen]) => {
       if (!actief) return;
 
       const dagen30 = laatsteDagen(30);
@@ -193,6 +195,14 @@ export default function BeheerDashboard() {
           href: `${basis}/beheer/vriendenboek/wijzigingen`,
           label: `${wijzigingen.length} wijzigingsvoorstel${wijzigingen.length === 1 ? "" : "len"} om na te kijken`,
           icon: "✏️",
+        });
+      }
+      const leidingGoedTeKeuren = leidingsploegen.filter((l) => l.goedgekeurd === false);
+      if (leidingGoedTeKeuren.length > 0) {
+        lijst.push({
+          href: `${basis}/beheer/tijdlijn/leiding`,
+          label: `${leidingGoedTeKeuren.length} leidingsploeg${leidingGoedTeKeuren.length === 1 ? "" : "en"} wacht${leidingGoedTeKeuren.length === 1 ? "" : "en"} op goedkeuring`,
+          icon: "👥",
         });
       }
       const ongelezenContact = contactBerichten.filter((b) => !b.gelezen);
