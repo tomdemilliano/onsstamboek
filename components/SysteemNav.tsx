@@ -1,10 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { logout } from "@/lib/auth";
 import { colors, fonts } from "@/lib/theme";
 
+const SECTIES = [
+  { href: "/systeembeheer", label: "🧭 Organisaties", exact: true },
+  { href: "/systeembeheer/groepen", label: "👥 Groepen" },
+];
+
 export default function SysteemNav() {
+  const pathname = usePathname();
+
   return (
     <header style={{ background: colors.stamp }}>
       <div
@@ -41,6 +49,29 @@ export default function SysteemNav() {
         >
           Uitloggen
         </button>
+      </div>
+
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "0 20px", display: "flex", gap: 4 }}>
+        {SECTIES.map((sectie) => {
+          const actief = sectie.exact ? pathname === sectie.href : pathname.startsWith(sectie.href);
+          return (
+            <Link
+              key={sectie.href}
+              href={sectie.href}
+              style={{
+                padding: "8px 14px",
+                borderBottom: `2.5px solid ${actief ? colors.campfire : "transparent"}`,
+                fontFamily: fonts.body,
+                fontSize: 13,
+                fontWeight: 600,
+                color: actief ? colors.white : "rgba(255,255,255,0.65)",
+                textDecoration: "none",
+              }}
+            >
+              {sectie.label}
+            </Link>
+          );
+        })}
       </div>
     </header>
   );
