@@ -75,43 +75,36 @@ export default function VriendenboekjePage() {
 
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "0 20px 100px" }}>
         <div style={{ textAlign: "center", marginBottom: 24, marginTop: 28 }}>
-          <h1 style={{ fontFamily: fonts.display, fontSize: 48, fontWeight: 700, color: colors.ink, margin: "0 0 10px" }}>
+          <h1 style={{ fontFamily: fonts.display, fontSize: 38, fontWeight: 700, color: colors.ink, margin: 0 }}>
             Het Vriendenboekje
           </h1>
-          <p style={{ fontFamily: fonts.body, fontSize: 16, color: colors.inkMuted, maxWidth: 480, margin: "0 auto" }}>
-            Herinneringen, totemnamen en de beste kampverhalen van iedereen die meedeed.
-          </p>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 28 }}>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 36, flexWrap: "wrap" }}>
           <TabKnop actief={tab === "leden"} onClick={() => setTab("leden")}>
             Leden ({entries.length})
           </TabKnop>
           <TabKnop actief={tab === "getagd"} onClick={() => setTab("getagd")}>
             Getagd, geen eigen fiche ({stubs.length})
           </TabKnop>
+          <input
+            type="text"
+            value={zoek}
+            onChange={(e) => setZoek(e.target.value)}
+            placeholder="Zoek op naam of totemnaam..."
+            style={{
+              width: 240,
+              padding: "8px 14px",
+              borderRadius: radius.badge,
+              border: `1px solid ${colors.line}`,
+              background: colors.white,
+              fontFamily: fonts.body,
+              fontSize: 14,
+              color: colors.ink,
+              boxSizing: "border-box",
+            }}
+          />
         </div>
-
-        <input
-          type="text"
-          value={zoek}
-          onChange={(e) => setZoek(e.target.value)}
-          placeholder="Zoek op naam of totemnaam..."
-          style={{
-            display: "block",
-            width: "100%",
-            maxWidth: 360,
-            margin: "0 auto 36px",
-            padding: "10px 14px",
-            borderRadius: radius.badge,
-            border: `1px solid ${colors.line}`,
-            background: colors.white,
-            fontFamily: fonts.body,
-            fontSize: 14,
-            color: colors.ink,
-            boxSizing: "border-box",
-          }}
-        />
 
         {loading && <p style={{ textAlign: "center", fontFamily: fonts.body, color: colors.inkMuted }}>Bezig met laden...</p>}
 

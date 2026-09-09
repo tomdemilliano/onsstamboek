@@ -91,15 +91,14 @@ export default function GroepLanding() {
       )}
 
       <div style={{ textAlign: "center", padding: "32px 0 8px" }}>
-        <h1 style={{ fontFamily: fonts.display, fontSize: 40, fontWeight: 700, color: colors.ink, margin: "0 0 8px" }}>{groep.naam}</h1>
-        {groep.gemeente && <p style={{ fontFamily: fonts.body, fontSize: 14, color: colors.inkMuted, margin: "0 0 16px" }}>{groep.gemeente}</p>}
         <p style={{ fontFamily: fonts.body, fontSize: 16, color: colors.ink }}>Welkom op het stamboek van {groep.naam}.</p>
       </div>
 
       {!loading && stats && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12, margin: "28px 0" }}>
+          {groep.gemeente && <StatKaart label="Gemeente" waarde={groep.gemeente} icon="📍" />}
           <StatKaart label="Leden" waarde={stats.leden} icon="📖" />
-          <StatKaart label="Kampplaatsen" waarde={stats.kampplaatsen} icon="📍" />
+          <StatKaart label="Kampplaatsen" waarde={stats.kampplaatsen} icon="🏕️" />
           <StatKaart label="Leidingsploegen" waarde={stats.leidingsploegen} icon="👥" />
           <StatKaart label="Foto's" waarde={stats.fotos} icon="📷" />
         </div>
@@ -137,7 +136,7 @@ export default function GroepLanding() {
   );
 }
 
-function StatKaart({ label, waarde, icon }: { label: string; waarde: number; icon: string }) {
+function StatKaart({ label, waarde, icon }: { label: string; waarde: number | string; icon: string }) {
   return (
     <div style={{ background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "16px 12px", textAlign: "center" }}>
       <div style={{ fontSize: 20, marginBottom: 6 }}>{icon}</div>

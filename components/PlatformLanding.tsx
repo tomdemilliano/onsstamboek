@@ -58,7 +58,7 @@ export default function PlatformLanding({
           De geschiedenis van jouw groep
         </p>
         <p style={{ fontFamily: fonts.body, fontSize: 16, color: colors.ink, maxWidth: 620, margin: "0 auto", lineHeight: 1.6 }}>
-          Ons Stamboek is het gedeelde platform waarop scoutsgroepen (en andere jeugdbewegingen) hun eigen geschiedenis
+          Ons Stamboek is het gedeelde platform waarop jeugdbewegingen hun eigen geschiedenis
           bijhouden en samen aanvullen: een vriendenboekje van oud-leden, een tijdlijn met mijlpalen en leidingsploegen
           doorheen de jaren, en foto&apos;s van vroeger. Elke groep krijgt haar eigen pagina, opgebouwd door haar eigen
           oud-leden en beheerders.
@@ -178,7 +178,7 @@ export default function PlatformLanding({
       {/* Contact */}
       <div style={{ textAlign: "center", marginTop: 60, paddingTop: 24, borderTop: `1px solid ${colors.line}` }}>
         <p style={{ fontFamily: fonts.body, fontSize: 14, color: colors.inkMuted, marginBottom: 10 }}>
-          Sta je groep hier niet tussen, of heb je een vraag over het platform?
+          Jouw groep ook op stamboek? Heb je een vraag over het platform?
         </p>
         <Link
           href="/contact"
