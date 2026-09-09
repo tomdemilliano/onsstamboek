@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useGroep } from "@/lib/groepContext";
 import { GroepFactory, OrganisatieFactory, PhotoFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
-import type { Organisatie, Photo, WithId } from "@/types/models";
+import type { Groep, Organisatie, Photo, WithId } from "@/types/models";
 
 export default function GroepInstellingen() {
   const groep = useGroep();
@@ -24,7 +24,7 @@ export default function GroepInstellingen() {
   const [landingFout, setLandingFout] = useState<string | null>(null);
   const [fotoKiezerOpen, setFotoKiezerOpen] = useState(false);
   const [fotos, setFotos] = useState<WithId<Photo>[] | null>(null);
-  const [positie, setPositie] = useState(groep.landingsafbeeldingPositie ?? { x: 50, y: 50 });
+  const [kadreerModalOpen, setKadreerModalOpen] = useState(false);
 
   useEffect(() => {
     let actief = true;
@@ -35,18 +35,6 @@ export default function GroepInstellingen() {
       actief = false;
     };
   }, []);
-
-  // Herstelt de lokale kadrering zodra er een nieuwe welkomstfoto gekozen
-  // wordt (die begint altijd gecentreerd, zie GroepFactory) -- anders zou
-  // deze pagina de kadrering van de vorige foto blijven tonen na een
-  // router.refresh(). Aangepast tijdens het renderen (React's aanbevolen
-  // patroon om state te resetten op een prop-wijziging), niet in een
-  // effect, wat hier een overbodige extra render zou geven.
-  const [vorigeUrl, setVorigeUrl] = useState(groep.landingsafbeeldingUrl);
-  if (groep.landingsafbeeldingUrl !== vorigeUrl) {
-    setVorigeUrl(groep.landingsafbeeldingUrl);
-    setPositie(groep.landingsafbeeldingPositie ?? { x: 50, y: 50 });
-  }
 
   async function opslaan(e: React.FormEvent) {
     e.preventDefault();
@@ -107,20 +95,6 @@ export default function GroepInstellingen() {
     }
   }
 
-  async function kadreren(e: React.MouseEvent<HTMLDivElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const nieuwePositie = {
-      x: Math.round(Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100))),
-      y: Math.round(Math.min(100, Math.max(0, ((e.clientY - rect.top) / rect.height) * 100))),
-    };
-    setPositie(nieuwePositie);
-    try {
-      await GroepFactory.updateLandingsafbeeldingPositie(groep.id, nieuwePositie);
-    } catch (err) {
-      console.error("Opslaan van kadrering mislukt:", err);
-    }
-  }
-
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "32px 20px 80px" }}>
       <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Instellingen</h1>
@@ -136,45 +110,40 @@ export default function GroepInstellingen() {
           Bovenaan de publieke startpagina van de groep, boven de statistieken.
         </p>
         {groep.landingsafbeeldingUrl && (
-          <>
-            <div
-              onClick={kadreren}
+          <div style={{ position: "relative", width: "100%", height: 160, borderRadius: radius.card, overflow: "hidden", border: `1px solid ${colors.line}` }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={groep.landingsafbeeldingUrl}
+              alt=""
               style={{
-                position: "relative",
                 width: "100%",
-                height: 200,
-                borderRadius: radius.card,
-                overflow: "hidden",
-                border: `1px solid ${colors.line}`,
-                cursor: "crosshair",
+                height: "100%",
+                objectFit: "cover",
+                objectPosition: `${groep.landingsafbeeldingPositie?.x ?? 50}% ${groep.landingsafbeeldingPositie?.y ?? 50}%`,
+                display: "block",
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setKadreerModalOpen(true)}
+              style={{
+                position: "absolute",
+                bottom: 10,
+                right: 10,
+                padding: "6px 14px",
+                borderRadius: radius.badge,
+                border: "none",
+                background: "rgba(44, 36, 25, 0.75)",
+                color: colors.white,
+                fontFamily: fonts.body,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
               }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={groep.landingsafbeeldingUrl}
-                alt=""
-                style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${positie.x}% ${positie.y}%`, display: "block" }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  left: `${positie.x}%`,
-                  top: `${positie.y}%`,
-                  transform: "translate(-50%, -50%)",
-                  width: 18,
-                  height: 18,
-                  borderRadius: "50%",
-                  border: "2px solid white",
-                  background: colors.campfire,
-                  boxShadow: "0 0 0 1px rgba(0,0,0,0.35)",
-                  pointerEvents: "none",
-                }}
-              />
-            </div>
-            <p style={{ fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted, margin: 0 }}>
-              Klik op de foto om het belangrijkste deel te kiezen -- dat blijft zichtbaar als de foto op een smaller scherm bijgesneden wordt.
-            </p>
-          </>
+              ✥ Kadreren
+            </button>
+          </div>
         )}
 
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
@@ -267,6 +236,161 @@ export default function GroepInstellingen() {
           {opgeslagen && <span style={{ fontFamily: fonts.body, fontSize: 13, color: colors.forest, fontWeight: 600 }}>✓ Opgeslagen</span>}
         </div>
       </form>
+
+      {kadreerModalOpen && groep.landingsafbeeldingUrl && (
+        <KadreerModal
+          groep={groep}
+          url={groep.landingsafbeeldingUrl}
+          huidigePositie={groep.landingsafbeeldingPositie ?? { x: 50, y: 50 }}
+          onSluiten={() => setKadreerModalOpen(false)}
+          onOpgeslagen={() => {
+            setKadreerModalOpen(false);
+            router.refresh();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function KadreerModal({
+  groep,
+  url,
+  huidigePositie,
+  onSluiten,
+  onOpgeslagen,
+}: {
+  groep: WithId<Groep>;
+  url: string;
+  huidigePositie: { x: number; y: number };
+  onSluiten: () => void;
+  onOpgeslagen: () => void;
+}) {
+  const [positie, setPositie] = useState(huidigePositie);
+  const [slepen, setSlepen] = useState(false);
+  const [bezig, setBezig] = useState(false);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onSluiten();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onSluiten]);
+
+  function bijwerken(clientX: number, clientY: number, rect: DOMRect) {
+    setPositie({
+      x: Math.round(Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100))),
+      y: Math.round(Math.min(100, Math.max(0, ((clientY - rect.top) / rect.height) * 100))),
+    });
+  }
+
+  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setSlepen(true);
+    bijwerken(e.clientX, e.clientY, e.currentTarget.getBoundingClientRect());
+  }
+
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!slepen) return;
+    bijwerken(e.clientX, e.clientY, e.currentTarget.getBoundingClientRect());
+  }
+
+  function onPointerUp() {
+    setSlepen(false);
+  }
+
+  async function bewaren() {
+    setBezig(true);
+    try {
+      await GroepFactory.updateLandingsafbeeldingPositie(groep.id, positie);
+      onOpgeslagen();
+    } catch (err) {
+      console.error("Opslaan van kadrering mislukt:", err);
+    } finally {
+      setBezig(false);
+    }
+  }
+
+  return (
+    <div
+      onClick={onSluiten}
+      style={{ position: "fixed", inset: 0, background: "rgba(44, 36, 25, 0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ background: colors.paperCard, borderRadius: radius.card, padding: 22, maxWidth: 620, width: "100%", display: "flex", flexDirection: "column", gap: 14 }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <div style={{ fontFamily: fonts.display, fontSize: 20, fontWeight: 700, color: colors.ink }}>Welkomstfoto kadreren</div>
+            <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted, margin: "4px 0 0" }}>
+              Sleep de foto tot het belangrijkste deel goed zichtbaar staat.
+            </p>
+          </div>
+          <button onClick={onSluiten} aria-label="Sluiten" style={{ background: "none", border: "none", fontSize: 20, color: colors.inkMuted, cursor: "pointer", lineHeight: 1 }}>
+            ✕
+          </button>
+        </div>
+
+        <div
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          style={{
+            position: "relative",
+            width: "100%",
+            height: 380,
+            borderRadius: radius.input,
+            overflow: "hidden",
+            border: `1px solid ${colors.line}`,
+            cursor: slepen ? "grabbing" : "grab",
+            touchAction: "none",
+            userSelect: "none",
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={url}
+            alt=""
+            draggable={false}
+            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${positie.x}% ${positie.y}%`, display: "block", pointerEvents: "none" }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              left: `${positie.x}%`,
+              top: `${positie.y}%`,
+              transform: "translate(-50%, -50%)",
+              width: 26,
+              height: 26,
+              borderRadius: "50%",
+              border: "3px solid white",
+              background: colors.campfire,
+              boxShadow: "0 0 0 1px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.3)",
+              pointerEvents: "none",
+              transition: slepen ? "none" : "left 0.08s, top 0.08s",
+            }}
+          />
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+          <button
+            onClick={onSluiten}
+            style={{ padding: "9px 18px", borderRadius: radius.badge, border: `1px solid ${colors.line}`, background: "transparent", color: colors.inkMuted, fontFamily: fonts.body, fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+          >
+            Annuleren
+          </button>
+          <button
+            onClick={bewaren}
+            disabled={bezig}
+            style={{ padding: "9px 20px", borderRadius: radius.badge, border: "none", background: bezig ? colors.inkMuted : colors.forest, color: colors.white, fontFamily: fonts.body, fontWeight: 600, fontSize: 13, cursor: bezig ? "default" : "pointer" }}
+          >
+            {bezig ? "Bezig met bewaren..." : "Bewaren"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
