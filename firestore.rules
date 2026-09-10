@@ -26,6 +26,21 @@ service cloud.firestore {
       return request.resource.data.groepId == resource.data.groepId;
     }
 
+    // Gedeelde veldvalidatie voor de publieke leidingsploeg-aanvulling/
+    // correctie (zowel bij create als update), zodat de check op beide
+    // plekken identiek blijft -- zie match /leidingsploegen hieronder.
+    function leidingVeldenGeldig() {
+      return request.resource.data.groepId is string
+        && exists(/databases/$(database)/documents/groepen/$(request.resource.data.groepId))
+        && request.resource.data.takId is string
+        && request.resource.data.werkingsjaarStart is int
+        && request.resource.data.werkingsjaarStart > 1900
+        && request.resource.data.werkingsjaarStart < 2200
+        && request.resource.data.leden is list
+        && request.resource.data.leden.size() < 30
+        && request.resource.data.goedgekeurd == false;
+    }
+
     // -----------------------------------------------------------------
     // groepen & lidmaatschappen
     // -----------------------------------------------------------------
@@ -89,7 +104,12 @@ service cloud.firestore {
     match /entries/{entryId} {
       allow read: if resource.data.status == 'published' || resource.data.status == 'stub';
 
-      allow read, update, delete: if isBeheerderVan(resource.data.groepId);
+      allow read, delete: if isBeheerderVan(resource.data.groepId);
+      // Een beheerder mag enkel bewerken binnen zijn eigen groep -- zonder
+      // groepIdOngewijzigd() zou een beheerder een eigen fiche kunnen
+      // "verplaatsen" naar een andere groep (data-integriteitsrisico,
+      // ontdekt bij het testen van de rules met 2 gelijktijdige groepen).
+      allow update: if isBeheerderVan(resource.data.groepId) && groepIdOngewijzigd();
       // Apart van de regel hierboven: `resource` bestaat nog niet bij een
       // create, dus die regel kan een NIEUW document niet dekken -- vandaar
       // deze eigen create-regel op `request.resource.data.groepId`, zoals
@@ -150,13 +170,17 @@ service cloud.firestore {
     // -----------------------------------------------------------------
     match /locations/{locationId} {
       allow read: if true;
-      allow write: if isBeheerderVan(resource.data.groepId);
+      // groepIdOngewijzigd() voorkomt dat een beheerder een kampplaats
+      // "verplaatst" naar een andere groep bij het bewerken.
+      allow update: if isBeheerderVan(resource.data.groepId) && groepIdOngewijzigd();
+      allow delete: if isBeheerderVan(resource.data.groepId);
       allow create: if isBeheerderVan(request.resource.data.groepId);
     }
 
     match /extraLocations/{locationId} {
       allow read: if resource.data.status == 'published' || isBeheerderVan(resource.data.groepId);
-      allow write: if isBeheerderVan(resource.data.groepId);
+      allow update: if isBeheerderVan(resource.data.groepId) && groepIdOngewijzigd();
+      allow delete: if isBeheerderVan(resource.data.groepId);
       // Apart van de regel hierboven: `resource` bestaat nog niet bij een
       // create, dus die regel kan een NIEUW document niet dekken -- vandaar
       // deze eigen create-regel op `request.resource.data.groepId`.
@@ -180,25 +204,29 @@ service cloud.firestore {
     // -----------------------------------------------------------------
     match /dishes/{dishId} {
       allow read: if true;
-      allow write: if isBeheerderVan(resource.data.groepId);
+      allow update: if isBeheerderVan(resource.data.groepId) && groepIdOngewijzigd();
+      allow delete: if isBeheerderVan(resource.data.groepId);
       allow create: if isBeheerderVan(request.resource.data.groepId);
     }
 
     match /links/{linkId} {
       allow read: if true;
-      allow write: if isBeheerderVan(resource.data.groepId);
+      allow update: if isBeheerderVan(resource.data.groepId) && groepIdOngewijzigd();
+      allow delete: if isBeheerderVan(resource.data.groepId);
       allow create: if isBeheerderVan(request.resource.data.groepId);
     }
 
     match /scoutTakken/{takId} {
       allow read: if true;
-      allow write: if isBeheerderVan(resource.data.groepId);
+      allow update: if isBeheerderVan(resource.data.groepId) && groepIdOngewijzigd();
+      allow delete: if isBeheerderVan(resource.data.groepId);
       allow create: if isBeheerderVan(request.resource.data.groepId);
     }
 
     match /photoTags/{tagId} {
       allow read: if true;
-      allow write: if isBeheerderVan(resource.data.groepId);
+      allow update: if isBeheerderVan(resource.data.groepId) && groepIdOngewijzigd();
+      allow delete: if isBeheerderVan(resource.data.groepId);
       allow create: if isBeheerderVan(request.resource.data.groepId);
     }
 
@@ -208,7 +236,8 @@ service cloud.firestore {
     // -----------------------------------------------------------------
     match /milestones/{milestoneId} {
       allow read: if resource.data.status == 'published' || isBeheerderVan(resource.data.groepId);
-      allow write: if isBeheerderVan(resource.data.groepId);
+      allow update: if isBeheerderVan(resource.data.groepId) && groepIdOngewijzigd();
+      allow delete: if isBeheerderVan(resource.data.groepId);
       allow create: if isBeheerderVan(request.resource.data.groepId);
 
       allow create: if request.auth == null
@@ -234,7 +263,8 @@ service cloud.firestore {
     // beheerder leest, publiek mag enkel aanmaken/ophogen)
     // -----------------------------------------------------------------
     match /contactBerichten/{berichtId} {
-      allow read, update, delete: if isBeheerderVan(resource.data.groepId);
+      allow read, delete: if isBeheerderVan(resource.data.groepId);
+      allow update: if isBeheerderVan(resource.data.groepId) && groepIdOngewijzigd();
       allow create: if request.resource.data.groepId is string
         && exists(/databases/$(database)/documents/groepen/$(request.resource.data.groepId))
         && request.resource.data.naam is string
@@ -264,7 +294,8 @@ service cloud.firestore {
     }
 
     match /wijzigingsVoorstellen/{voorstelId} {
-      allow read, write: if isBeheerderVan(resource.data.groepId);
+      allow read, delete: if isBeheerderVan(resource.data.groepId);
+      allow update: if isBeheerderVan(resource.data.groepId) && groepIdOngewijzigd();
       allow create: if request.resource.data.groepId is string
         && exists(/databases/$(database)/documents/groepen/$(request.resource.data.groepId))
         && request.resource.data.entryId is string
@@ -312,21 +343,19 @@ service cloud.firestore {
     match /leidingsploegen/{leidingId} {
       allow read: if true;
 
-      allow write: if isBeheerderVan(resource.data.groepId);
+      allow update: if isBeheerderVan(resource.data.groepId) && groepIdOngewijzigd();
       allow create: if isBeheerderVan(request.resource.data.groepId);
 
       // Publieke aanvulling/correctie: meteen zichtbaar, maar altijd als
       // 'goedgekeurd == false' -- een bezoeker kan zijn eigen wijziging niet
-      // zelf als goedgekeurd markeren, dat doet enkel de beheerder.
-      allow create, update: if request.resource.data.groepId is string
-        && exists(/databases/$(database)/documents/groepen/$(request.resource.data.groepId))
-        && request.resource.data.takId is string
-        && request.resource.data.werkingsjaarStart is int
-        && request.resource.data.werkingsjaarStart > 1900
-        && request.resource.data.werkingsjaarStart < 2200
-        && request.resource.data.leden is list
-        && request.resource.data.leden.size() < 30
-        && request.resource.data.goedgekeurd == false;
+      // zelf als goedgekeurd markeren, dat doet enkel de beheerder. Het
+      // document-id is voorspelbaar (groepId_takId_werkingsjaarStart, zie
+      // lib/dbSchema.ts LeidingFactory), dus zonder groepIdOngewijzigd() bij
+      // de update-tak zou een anonieme bezoeker een bestaande leidingsploeg
+      // van een andere groep kunnen "kapen" door de groepId te herschrijven
+      // (ontdekt bij het testen van de rules met 2 gelijktijdige groepen).
+      allow create: if leidingVeldenGeldig();
+      allow update: if groepIdOngewijzigd() && leidingVeldenGeldig();
       allow delete: if isBeheerderVan(resource.data.groepId);
     }
 
@@ -336,7 +365,8 @@ service cloud.firestore {
     match /photos/{photoId} {
       allow read: if resource.data.status == 'published' || isBeheerderVan(resource.data.groepId);
 
-      allow write: if isBeheerderVan(resource.data.groepId);
+      allow update: if isBeheerderVan(resource.data.groepId) && groepIdOngewijzigd();
+      allow delete: if isBeheerderVan(resource.data.groepId);
       allow create: if isBeheerderVan(request.resource.data.groepId);
 
       // Publieke NIEUWE foto: altijd 'pending'.

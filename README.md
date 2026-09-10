@@ -110,6 +110,26 @@ gaat via [Resend](https://resend.com):
 Zonder `RESEND_API_KEY` faalt het uitnodigen met een duidelijke
 foutmelding -- de rest van de app blijft gewoon werken.
 
+## Firestore-rules testen
+
+`scripts/testFirestoreRules.ts` is een automatische testsuite die
+`firestore.rules` controleert tegen het grootste risico van dit platform:
+kan een groepsbeheerder van groep A data van groep B lezen, bewerken of
+verwijderen? Ze draait volledig tegen de lokale Firestore-emulator (nooit
+tegen een echt project, dus zonder kost of risico) en simuleert 2
+gelijktijdig actieve groepen, hun beheerders, de systeembeheerder en een
+niet-aangemelde bezoeker.
+
+```
+npm run test:rules
+```
+
+Dit commando start zelf de emulator (via `firebase emulators:exec`), draait
+alle tests, en sluit de emulator weer af. Geen Firebase-login of
+project-configuratie nodig. Draai dit opnieuw na elke wijziging aan
+`firestore.rules` -- de eerste keer duurt iets langer omdat de emulator-jar
+gedownload wordt.
+
 ## Migratie van de bestaande Sint-Eduardus-data
 
 Zie `scripts/migrate.ts` -- vereist service-account-sleutels van zowel
