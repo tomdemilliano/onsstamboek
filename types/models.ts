@@ -64,6 +64,14 @@ export interface Lidmaatschap {
   groepId: string;
   rol: LidmaatschapRol;
   createdAt?: Timestamp;
+  /**
+   * Welke versie van de gebruiksvoorwaarden (zie lib/voorwaarden.ts) deze
+   * groepsbeheerder aanvaardde voor déze groep, en wanneer. Komt niet
+   * overeen met de huidige VOORWAARDEN_VERSIE, dan blokkeert
+   * RequireGroepsbeheerder de toegang tot /beheer tot opnieuw aanvaard is.
+   */
+  voorwaardenVersie?: string | null;
+  voorwaardenGeaccepteerdOp?: Timestamp | null;
 }
 
 // ---------------------------------------------------------------------------

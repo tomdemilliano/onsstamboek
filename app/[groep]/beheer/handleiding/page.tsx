@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { colors, fonts, radius } from "@/lib/theme";
 
 // Statische inhoud, geen groep-specifieke gegevens nodig -- daarom bewust
@@ -92,6 +93,13 @@ export default function HandleidingPage() {
             </>,
           ]}
         />
+        <P>
+          Deze afspraken staan ook uitgeschreven in de{" "}
+          <Link href="/voorwaarden" target="_blank" style={{ color: colors.forest, fontWeight: 600 }}>
+            gebruiksvoorwaarden voor groepsbeheerders
+          </Link>
+          , die je bij je eerste aanmelding voor deze groep moest aanvaarden.
+        </P>
       </Sectie>
 
       <Sectie id="dashboard" titel="🏠 Dashboard">

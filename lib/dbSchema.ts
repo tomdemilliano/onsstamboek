@@ -22,6 +22,7 @@ import {
   deleteObject,
 } from "firebase/storage";
 import { db, storage } from "./firebase";
+import { VOORWAARDEN_VERSIE } from "./voorwaarden";
 import type {
   Groep,
   Organisatie,
@@ -222,6 +223,20 @@ export const LidmaatschapFactory = {
 
   async verwijder(userId: string, groepId: string): Promise<void> {
     await deleteDoc(doc(db, LIDMAATSCHAPPEN, lidmaatschapDocId(userId, groepId)));
+  },
+
+  /** Heeft deze groepsbeheerder de huidige VOORWAARDEN_VERSIE al aanvaard voor deze groep? */
+  async heeftVoorwaardenGeaccepteerd(userId: string, groepId: string): Promise<boolean> {
+    const snap = await getDoc(doc(db, LIDMAATSCHAPPEN, lidmaatschapDocId(userId, groepId)));
+    if (!snap.exists()) return false;
+    return (snap.data() as Lidmaatschap).voorwaardenVersie === VOORWAARDEN_VERSIE;
+  },
+
+  async accepteerVoorwaarden(userId: string, groepId: string): Promise<void> {
+    await updateDoc(doc(db, LIDMAATSCHAPPEN, lidmaatschapDocId(userId, groepId)), {
+      voorwaardenVersie: VOORWAARDEN_VERSIE,
+      voorwaardenGeaccepteerdOp: serverTimestamp(),
+    });
   },
 };
 

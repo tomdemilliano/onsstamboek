@@ -47,7 +47,17 @@ service cloud.firestore {
       // de systeembeheerder mag alles lezen/beheren.
       allow read: if request.auth != null
         && (resource.data.userId == request.auth.uid || isSysteembeheerder());
-      allow write: if isSysteembeheerder();
+      allow create, delete: if isSysteembeheerder();
+      // Een groepsbeheerder mag op zijn eigen lidmaatschap enkel de
+      // "voorwaarden geaccepteerd"-velden zetten (verplichte
+      // gebruiksvoorwaarden-acceptatie vóór toegang tot /beheer, zie
+      // RequireGroepsbeheerder) -- userId/groepId/rol blijven
+      // systeembeheerder-only.
+      allow update: if isSysteembeheerder() || (
+        request.auth != null
+        && request.auth.uid == resource.data.userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['voorwaardenVersie', 'voorwaardenGeaccepteerdOp'])
+      );
     }
 
     // -----------------------------------------------------------------
