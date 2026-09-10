@@ -133,27 +133,30 @@ export default function GroepLanding() {
             border: `1.5px dashed ${colors.campfire}`,
             borderRadius: radius.card,
             padding: "20px 22px",
-            textAlign: "center",
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+            textAlign: "left",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
-            <WeetjeAvatar type={weetje.type} groep={groep} organisatieLogoUrl={organisatie?.logoUrl} />
-            <span style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: colors.campfire }}>
+          <WeetjeAvatar type={weetje.type} groep={groep} organisatieLogoUrl={organisatie?.logoUrl} maat={64} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: colors.campfire, marginBottom: 6 }}>
               💡 Wist je dat...
-            </span>
+            </div>
+            <div style={{ fontFamily: fonts.display, fontSize: 19, fontWeight: 700, color: colors.ink, marginBottom: weetje.beschrijving ? 6 : 0 }}>
+              {weetje.jaar} — {weetje.titel}
+            </div>
+            {weetje.beschrijving && <p style={{ fontFamily: fonts.body, fontSize: 14, color: colors.ink, margin: 0, lineHeight: 1.5 }}>{weetje.beschrijving}</p>}
+            {weetjes.length > 1 && (
+              <button
+                onClick={toonAnderWeetje}
+                style={{ marginTop: 14, background: "none", border: "none", cursor: "pointer", fontFamily: fonts.body, fontSize: 12, fontWeight: 600, color: colors.campfire, textDecoration: "underline", padding: 0 }}
+              >
+                🎲 Nog een weetje
+              </button>
+            )}
           </div>
-          <div style={{ fontFamily: fonts.display, fontSize: 19, fontWeight: 700, color: colors.ink, marginBottom: weetje.beschrijving ? 6 : 0 }}>
-            {weetje.jaar} — {weetje.titel}
-          </div>
-          {weetje.beschrijving && <p style={{ fontFamily: fonts.body, fontSize: 14, color: colors.ink, margin: 0, lineHeight: 1.5 }}>{weetje.beschrijving}</p>}
-          {weetjes.length > 1 && (
-            <button
-              onClick={toonAnderWeetje}
-              style={{ marginTop: 14, background: "none", border: "none", cursor: "pointer", fontFamily: fonts.body, fontSize: 12, fontWeight: 600, color: colors.campfire, textDecoration: "underline" }}
-            >
-              🎲 Nog een weetje
-            </button>
-          )}
         </div>
       )}
     </div>
@@ -171,15 +174,25 @@ function StatKaart({ label, waarde, icon }: { label: string; waarde: number | st
 }
 
 /** Toont links van "Wist je dat..." de avatar van de groep (🚩) of van de organisatie (⚜️), afhankelijk van welk type mijlpaal dit weetje is. */
-function WeetjeAvatar({ type, groep, organisatieLogoUrl }: { type: "scouting" | "groep"; groep: WithId<Groep>; organisatieLogoUrl?: string | null }) {
+function WeetjeAvatar({
+  type,
+  groep,
+  organisatieLogoUrl,
+  maat = 26,
+}: {
+  type: "scouting" | "groep";
+  groep: WithId<Groep>;
+  organisatieLogoUrl?: string | null;
+  maat?: number;
+}) {
   const url = type === "groep" ? groep.logoUrl : organisatieLogoUrl;
   const positie = type === "groep" ? groep.logoPositie : undefined;
 
   return (
     <div
       style={{
-        width: 26,
-        height: 26,
+        width: maat,
+        height: maat,
         borderRadius: "50%",
         overflow: "hidden",
         flexShrink: 0,
@@ -188,7 +201,7 @@ function WeetjeAvatar({ type, groep, organisatieLogoUrl }: { type: "scouting" | 
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontSize: 13,
+        fontSize: Math.round(maat / 2),
       }}
     >
       {url ? (
