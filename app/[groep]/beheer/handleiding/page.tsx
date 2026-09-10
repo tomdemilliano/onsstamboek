@@ -149,6 +149,12 @@ export default function HandleidingPage() {
           gepubliceerd stond. Je ziet per veld wat verandert (oud → nieuw) en kiest <strong>Goedkeuren</strong>{" "}
           (past de fiche meteen aan) of <strong>Weigeren</strong> (fiche blijft ongewijzigd).
         </P>
+        <P>
+          Bovenaan het overzicht staat ook een downloadlink voor het <strong>blanco papieren formulier</strong> --
+          handig om ook wie liever niet online invult te bereiken, bv. via een reünie of een stapel op een startdag
+          of ander groepsevenement. De ingevulde formulieren verwerk je nadien gewoon via &quot;+ Meerdere
+          scans&quot; hierboven.
+        </P>
       </Sectie>
 
       <Sectie id="tijdlijn" titel="⏳ Tijdlijn">

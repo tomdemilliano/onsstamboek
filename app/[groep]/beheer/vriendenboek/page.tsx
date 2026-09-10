@@ -128,6 +128,54 @@ export default function VriendenboekPage() {
 
       <AdminSubNav tabs={tabs} />
 
+      <div
+        style={{
+          background: colors.campfireLight,
+          border: `1.5px dashed ${colors.campfire}`,
+          borderRadius: radius.card,
+          padding: "16px 18px",
+          marginBottom: 24,
+          display: "flex",
+          gap: 14,
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <div style={{ fontFamily: fonts.body, fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: colors.campfire, marginBottom: 4 }}>
+            💡 Tip -- ook op papier verzamelen
+          </div>
+          <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.ink, margin: 0, lineHeight: 1.5 }}>
+            Niet iedereen vult dit graag online in. Druk het blanco formulier hieronder af en organiseer een reünie,
+            of leg een stapel klaar op een startdag of ander groepsevenement. De ingevulde formulieren scan je
+            nadien gewoon in (met een scanner, of gewoon een foto met je telefoon) en verwerk je via{" "}
+            <Link href={`${basis}/beheer/vriendenboek/bulk-upload`} style={{ color: colors.forest, fontWeight: 600 }}>
+              &quot;+ Meerdere scans&quot;
+            </Link>
+            .
+          </p>
+        </div>
+        <a
+          href="/vriendenboekje-formulier.pdf"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            padding: "9px 18px",
+            borderRadius: radius.badge,
+            border: "none",
+            background: colors.campfire,
+            color: colors.white,
+            fontFamily: fonts.body,
+            fontWeight: 600,
+            fontSize: 13,
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+          }}
+        >
+          📄 Blanco formulier downloaden
+        </a>
+      </div>
+
       <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 24, alignItems: "center" }}>
         <FilterGroup label="Status">
           <FilterButton active={statusFilter === "alle"} onClick={() => setStatusFilter("alle")}>
