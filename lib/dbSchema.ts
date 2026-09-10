@@ -154,6 +154,42 @@ export const GroepFactory = {
   async updateLandingsafbeeldingPositie(id: string, positie: { x: number; y: number; zoom: number }): Promise<void> {
     await updateDoc(doc(db, GROEPEN, id), { landingsafbeeldingPositie: positie, updatedAt: serverTimestamp() });
   },
+
+  /**
+   * Avatar/profielfoto van de groep -- getoond in een cirkel op het
+   * groepskaartje van de platform-landingspagina en bij groeps-weetjes.
+   * Zelfde patroon als de welkomstfoto hierboven.
+   */
+  async updateLogo(id: string, file: File, bestaandePath?: string | null): Promise<void> {
+    if (bestaandePath?.includes("/logo/")) await verwijderAfbeelding(bestaandePath);
+    const upload = await uploadGroepAfbeelding(id, file, "logo", "logo");
+    await updateDoc(doc(db, GROEPEN, id), {
+      logoUrl: upload.url,
+      logoPath: upload.path,
+      logoPositie: null,
+      updatedAt: serverTimestamp(),
+    });
+  },
+
+  /** Kiest een reeds opgeladen foto uit de galerij als avatar -- kopieert niets, verwijst gewoon naar hetzelfde Storage-bestand. */
+  async setLogoVanFoto(
+    id: string,
+    foto: { afbeeldingUrl: string; afbeeldingPath: string },
+    bestaandePath?: string | null
+  ): Promise<void> {
+    if (bestaandePath?.includes("/logo/")) await verwijderAfbeelding(bestaandePath);
+    await updateDoc(doc(db, GROEPEN, id), {
+      logoUrl: foto.afbeeldingUrl,
+      logoPath: foto.afbeeldingPath,
+      logoPositie: null,
+      updatedAt: serverTimestamp(),
+    });
+  },
+
+  /** Kadrering van de avatar (zie Groep.logoPositie) -- laat de beheerder kadreren + in/uitzoomen. */
+  async updateLogoPositie(id: string, positie: { x: number; y: number; zoom: number }): Promise<void> {
+    await updateDoc(doc(db, GROEPEN, id), { logoPositie: positie, updatedAt: serverTimestamp() });
+  },
 };
 
 const ORGANISATIES = "organisaties";

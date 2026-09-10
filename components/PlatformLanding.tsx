@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { setGroepCookie } from "@/lib/groepCookie";
 import { colors, fonts, radius } from "@/lib/theme";
+import { landingsafbeeldingStyle } from "@/lib/landingsafbeelding";
 import type { Groep, Organisatie, WithId } from "@/types/models";
 
 export default function PlatformLanding({
@@ -121,12 +122,10 @@ export default function PlatformLanding({
               }}
             >
               {groep.logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={groep.logoUrl}
-                  alt=""
-                  style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", border: `2px solid ${colors.campfire}`, marginBottom: 8 }}
-                />
+                <div style={{ width: 64, height: 64, borderRadius: "50%", overflow: "hidden", border: `2px solid ${colors.campfire}`, marginBottom: 8 }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={groep.logoUrl} alt="" style={landingsafbeeldingStyle(groep.logoPositie)} />
+                </div>
               ) : (
                 <div
                   style={{

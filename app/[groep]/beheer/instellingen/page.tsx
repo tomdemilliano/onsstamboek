@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useGroep } from "@/lib/groepContext";
 import { GroepFactory, OrganisatieFactory, PhotoFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
-import { LANDING_ASPECT_RATIO, landingsafbeeldingStyle, normaliseerPositie } from "@/lib/landingsafbeelding";
+import { AVATAR_ASPECT_RATIO, LANDING_ASPECT_RATIO, type Kadrering, landingsafbeeldingStyle, normaliseerPositie } from "@/lib/landingsafbeelding";
 import DasIcon from "@/components/DasIcon";
-import type { Groep, Organisatie, Photo, WithId } from "@/types/models";
+import type { Organisatie, Photo, WithId } from "@/types/models";
 
 const STANDAARD_DASKLEUR_1 = "#3E5B45";
 const STANDAARD_DASKLEUR_2 = "#F4B860";
@@ -38,6 +38,11 @@ export default function GroepInstellingen() {
   const [fotoKiezerOpen, setFotoKiezerOpen] = useState(false);
   const [fotos, setFotos] = useState<WithId<Photo>[] | null>(null);
   const [kadreerModalOpen, setKadreerModalOpen] = useState(false);
+
+  const [logoBezig, setLogoBezig] = useState(false);
+  const [logoFout, setLogoFout] = useState<string | null>(null);
+  const [logoFotoKiezerOpen, setLogoFotoKiezerOpen] = useState(false);
+  const [logoKadreerModalOpen, setLogoKadreerModalOpen] = useState(false);
 
   useEffect(() => {
     let actief = true;
@@ -112,6 +117,46 @@ export default function GroepInstellingen() {
     }
   }
 
+  async function logoKiezen(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoFout(null);
+    setLogoBezig(true);
+    try {
+      await GroepFactory.updateLogo(groep.id, file, groep.logoPath);
+      router.refresh();
+    } catch (err) {
+      console.error("Opladen van avatar mislukt:", err);
+      setLogoFout("Opladen mislukt, probeer opnieuw.");
+    } finally {
+      setLogoBezig(false);
+      e.target.value = "";
+    }
+  }
+
+  async function openLogoFotoKiezer() {
+    setLogoFout(null);
+    setLogoFotoKiezerOpen(true);
+    if (fotos === null) {
+      setFotos(await PhotoFactory.getPublished(groep.id));
+    }
+  }
+
+  async function logoFotoKiezen(foto: WithId<Photo>) {
+    setLogoFout(null);
+    setLogoBezig(true);
+    try {
+      await GroepFactory.setLogoVanFoto(groep.id, foto, groep.logoPath);
+      setLogoFotoKiezerOpen(false);
+      router.refresh();
+    } catch (err) {
+      console.error("Instellen van avatar mislukt:", err);
+      setLogoFout("Instellen mislukt, probeer opnieuw.");
+    } finally {
+      setLogoBezig(false);
+    }
+  }
+
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "32px 20px 80px" }}>
       <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Instellingen</h1>
@@ -156,7 +201,7 @@ export default function GroepInstellingen() {
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
           <label style={{ display: "inline-block", cursor: "pointer", fontFamily: fonts.body, fontSize: 13, fontWeight: 600, color: colors.forestDark }}>
             {landingBezig ? "Bezig..." : groep.landingsafbeeldingUrl ? "Nieuw bestand opladen" : "Bestand opladen"}
-            <input type="file" accept="image/*" onChange={landingsafbeeldingKiezen} disabled={landingBezig} style={{ display: "block", marginTop: 6, fontFamily: fonts.body, fontSize: 13 }} />
+            <input type="file" accept="image/*" onChange={landingsafbeeldingKiezen} disabled={landingBezig} style={{ display: "none" }} />
           </label>
           <button
             type="button"
@@ -202,6 +247,98 @@ export default function GroepInstellingen() {
         )}
 
         {landingFout && <div style={{ color: colors.stamp, fontFamily: fonts.body, fontSize: 13 }}>{landingFout}</div>}
+      </div>
+
+      <div style={{ background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "20px 22px", marginBottom: 24, display: "flex", flexDirection: "column", gap: 12 }}>
+        <span style={{ display: "block", fontFamily: fonts.body, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: colors.inkMuted }}>
+          Avatar
+        </span>
+        <p style={{ fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted, margin: 0 }}>
+          Rond profielfotootje van de groep -- te zien op het groepskaartje op de platform-startpagina en bij groeps-weetjes.
+        </p>
+
+        <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+          {groep.logoUrl && (
+            <div style={{ position: "relative", width: 96, height: 96, flexShrink: 0 }}>
+              <div style={{ width: "100%", height: "100%", aspectRatio: AVATAR_ASPECT_RATIO, borderRadius: "50%", overflow: "hidden", border: `1px solid ${colors.line}` }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={groep.logoUrl} alt="" style={landingsafbeeldingStyle(groep.logoPositie)} />
+              </div>
+              <button
+                type="button"
+                onClick={() => setLogoKadreerModalOpen(true)}
+                aria-label="Avatar kadreren"
+                title="Kadreren"
+                style={{
+                  position: "absolute",
+                  bottom: -2,
+                  right: -2,
+                  width: 30,
+                  height: 30,
+                  borderRadius: "50%",
+                  border: `2px solid ${colors.paperCard}`,
+                  background: "rgba(44, 36, 25, 0.75)",
+                  color: colors.white,
+                  fontSize: 14,
+                  cursor: "pointer",
+                }}
+              >
+                ✥
+              </button>
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+              <label style={{ display: "inline-block", cursor: "pointer", fontFamily: fonts.body, fontSize: 13, fontWeight: 600, color: colors.forestDark }}>
+                {logoBezig ? "Bezig..." : groep.logoUrl ? "Nieuw bestand opladen" : "Bestand opladen"}
+                <input type="file" accept="image/*" onChange={logoKiezen} disabled={logoBezig} style={{ display: "none" }} />
+              </label>
+              <button
+                type="button"
+                onClick={openLogoFotoKiezer}
+                disabled={logoBezig}
+                style={{ background: "none", border: "none", cursor: logoBezig ? "default" : "pointer", fontFamily: fonts.body, fontSize: 13, fontWeight: 600, color: colors.forest, textDecoration: "underline", padding: 0 }}
+              >
+                Kiezen uit foto&apos;s
+              </button>
+            </div>
+            {logoFout && <div style={{ color: colors.stamp, fontFamily: fonts.body, fontSize: 13 }}>{logoFout}</div>}
+          </div>
+        </div>
+
+        {logoFotoKiezerOpen && (
+          <div style={{ borderTop: `1px solid ${colors.line}`, paddingTop: 12 }}>
+            {fotos === null && <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>Bezig met laden...</p>}
+            {fotos !== null && fotos.length === 0 && (
+              <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>Nog geen gepubliceerde foto&apos;s om uit te kiezen.</p>
+            )}
+            {fotos !== null && fotos.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 8, maxHeight: 260, overflowY: "auto" }}>
+                {fotos.map((foto) => (
+                  <button
+                    key={foto.id}
+                    type="button"
+                    onClick={() => logoFotoKiezen(foto)}
+                    disabled={logoBezig}
+                    style={{
+                      padding: 0,
+                      border: `2px solid ${foto.afbeeldingPath === groep.logoPath ? colors.forest : "transparent"}`,
+                      borderRadius: radius.input,
+                      overflow: "hidden",
+                      cursor: logoBezig ? "default" : "pointer",
+                      aspectRatio: "1 / 1",
+                      background: colors.line,
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={foto.afbeeldingUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <form onSubmit={opslaan} style={{ background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "24px 26px", display: "flex", flexDirection: "column", gap: 16 }}>
@@ -291,12 +428,32 @@ export default function GroepInstellingen() {
 
       {kadreerModalOpen && groep.landingsafbeeldingUrl && (
         <KadreerModal
-          groep={groep}
+          titel="Welkomstfoto kadreren"
+          beschrijving="Sleep de foto tot het belangrijkste deel goed zichtbaar staat."
           url={groep.landingsafbeeldingUrl}
+          aspectRatio={LANDING_ASPECT_RATIO}
           huidigePositie={normaliseerPositie(groep.landingsafbeeldingPositie)}
+          onOpslaan={(positie) => GroepFactory.updateLandingsafbeeldingPositie(groep.id, positie)}
           onSluiten={() => setKadreerModalOpen(false)}
           onOpgeslagen={() => {
             setKadreerModalOpen(false);
+            router.refresh();
+          }}
+        />
+      )}
+
+      {logoKadreerModalOpen && groep.logoUrl && (
+        <KadreerModal
+          titel="Avatar kadreren"
+          beschrijving="Sleep de afbeelding tot het belangrijkste deel goed zichtbaar staat in de cirkel."
+          url={groep.logoUrl}
+          aspectRatio={AVATAR_ASPECT_RATIO}
+          rond
+          huidigePositie={normaliseerPositie(groep.logoPositie)}
+          onOpslaan={(positie) => GroepFactory.updateLogoPositie(groep.id, positie)}
+          onSluiten={() => setLogoKadreerModalOpen(false)}
+          onOpgeslagen={() => {
+            setLogoKadreerModalOpen(false);
             router.refresh();
           }}
         />
@@ -306,15 +463,23 @@ export default function GroepInstellingen() {
 }
 
 function KadreerModal({
-  groep,
+  titel,
+  beschrijving,
   url,
+  aspectRatio,
+  rond,
   huidigePositie,
+  onOpslaan,
   onSluiten,
   onOpgeslagen,
 }: {
-  groep: WithId<Groep>;
+  titel: string;
+  beschrijving: string;
   url: string;
-  huidigePositie: { x: number; y: number; zoom: number };
+  aspectRatio: string;
+  rond?: boolean;
+  huidigePositie: Kadrering;
+  onOpslaan: (positie: Kadrering) => Promise<void>;
   onSluiten: () => void;
   onOpgeslagen: () => void;
 }) {
@@ -356,7 +521,7 @@ function KadreerModal({
   async function bewaren() {
     setBezig(true);
     try {
-      await GroepFactory.updateLandingsafbeeldingPositie(groep.id, positie);
+      await onOpslaan(positie);
       onOpgeslagen();
     } catch (err) {
       console.error("Opslaan van kadrering mislukt:", err);
@@ -376,10 +541,8 @@ function KadreerModal({
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
-            <div style={{ fontFamily: fonts.display, fontSize: 20, fontWeight: 700, color: colors.ink }}>Welkomstfoto kadreren</div>
-            <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted, margin: "4px 0 0" }}>
-              Sleep de foto tot het belangrijkste deel goed zichtbaar staat.
-            </p>
+            <div style={{ fontFamily: fonts.display, fontSize: 20, fontWeight: 700, color: colors.ink }}>{titel}</div>
+            <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted, margin: "4px 0 0" }}>{beschrijving}</p>
           </div>
           <button onClick={onSluiten} aria-label="Sluiten" style={{ background: "none", border: "none", fontSize: 20, color: colors.inkMuted, cursor: "pointer", lineHeight: 1 }}>
             ✕
@@ -393,9 +556,10 @@ function KadreerModal({
           onPointerCancel={onPointerUp}
           style={{
             position: "relative",
-            width: "100%",
-            aspectRatio: LANDING_ASPECT_RATIO,
-            borderRadius: radius.input,
+            width: rond ? "min(100%, 320px)" : "100%",
+            margin: rond ? "0 auto" : undefined,
+            aspectRatio,
+            borderRadius: rond ? "50%" : radius.input,
             overflow: "hidden",
             border: `1px solid ${colors.line}`,
             cursor: slepen ? "grabbing" : "grab",
