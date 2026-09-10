@@ -16,6 +16,19 @@ export function naarWebadres(naam: string): string {
 }
 
 /**
+ * Normaliseert een door een beheerder ingevulde URL (links, receptlinks...)
+ * voor gebruik als `href`: leeg blijft leeg, en ontbreekt het http(s)-schema,
+ * dan wordt https:// ervoor gezet. Voorkomt zowel per ongeluk kapotte
+ * relatieve links (bv. enkel "voorbeeld.be" ingevuld) als een `javascript:`-
+ * URL die bij een klik code zou uitvoeren in de browser van elke bezoeker.
+ */
+export function naarVeiligeUrl(url: string): string {
+  const getrimd = url.trim();
+  if (!getrimd) return "";
+  return /^https?:\/\//i.test(getrimd) ? getrimd : `https://${getrimd}`;
+}
+
+/**
  * Normaliseert een veld dat meerdere losse waarden kan bevatten (activiteiten,
  * kampplaatsen, gerechten...) naar een array met minstens één (mogelijk lege)
  * waarde, zodat formuliercomponenten er altijd veilig doorheen kunnen loopen.

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useGroep } from "@/lib/groepContext";
 import { LinkFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
+import { naarVeiligeUrl } from "@/lib/textUtils";
 import type { Link as GroepLink, WithId } from "@/types/models";
 
 const leeg = { naam: "", url: "", omschrijving: "" };
@@ -41,8 +42,7 @@ export default function LinksBeheerPage() {
       setFoutmelding("Naam en URL zijn verplicht.");
       return;
     }
-    let url = nieuw.url.trim();
-    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+    const url = naarVeiligeUrl(nieuw.url);
 
     setToevoegBezig(true);
     try {

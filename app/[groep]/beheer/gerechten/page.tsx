@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useGroep } from "@/lib/groepContext";
 import { EntryFactory, DishFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
-import { groupByArrayField, type VeldGroep } from "@/lib/textUtils";
+import { groupByArrayField, naarVeiligeUrl, type VeldGroep } from "@/lib/textUtils";
 import type { Dish, Entry, WithId } from "@/types/models";
 
 export default function GerechtenPage() {
@@ -75,7 +75,7 @@ function DishCard({
   async function opslaan() {
     setBezig(true);
     try {
-      await DishFactory.set(groepId, groepItem.label, { receptUrl: receptUrl.trim(), receptNotitie: receptNotitie.trim() });
+      await DishFactory.set(groepId, groepItem.label, { receptUrl: naarVeiligeUrl(receptUrl), receptNotitie: receptNotitie.trim() });
       onChanged();
     } finally {
       setBezig(false);

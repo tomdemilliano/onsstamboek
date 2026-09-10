@@ -26,6 +26,16 @@ service cloud.firestore {
       return request.resource.data.groepId == resource.data.groepId;
     }
 
+    // Enkel http(s)-links toestaan (of leeg) -- de beheer-UI zet dit al recht
+    // (zie lib/textUtils.ts naarVeiligeUrl), maar zonder deze check op de
+    // rule zelf kan iemand die rechtstreeks de Firestore-API aanspreekt (bv.
+    // via de browserconsole terwijl aangemeld als beheerder) een
+    // `javascript:`-URL opslaan die bij een klik code uitvoert in de
+    // browser van elke bezoeker.
+    function urlVeilig(url) {
+      return url is string && (url.size() == 0 || url.matches('^https?://.*'));
+    }
+
     // Gedeelde veldvalidatie voor de publieke leidingsploeg-aanvulling/
     // correctie (zowel bij create als update), zodat de check op beide
     // plekken identiek blijft -- zie match /leidingsploegen hieronder.
@@ -204,16 +214,16 @@ service cloud.firestore {
     // -----------------------------------------------------------------
     match /dishes/{dishId} {
       allow read: if true;
-      allow update: if isBeheerderVan(resource.data.groepId) && groepIdOngewijzigd();
+      allow update: if isBeheerderVan(resource.data.groepId) && groepIdOngewijzigd() && urlVeilig(request.resource.data.receptUrl);
       allow delete: if isBeheerderVan(resource.data.groepId);
-      allow create: if isBeheerderVan(request.resource.data.groepId);
+      allow create: if isBeheerderVan(request.resource.data.groepId) && urlVeilig(request.resource.data.receptUrl);
     }
 
     match /links/{linkId} {
       allow read: if true;
-      allow update: if isBeheerderVan(resource.data.groepId) && groepIdOngewijzigd();
+      allow update: if isBeheerderVan(resource.data.groepId) && groepIdOngewijzigd() && urlVeilig(request.resource.data.url);
       allow delete: if isBeheerderVan(resource.data.groepId);
-      allow create: if isBeheerderVan(request.resource.data.groepId);
+      allow create: if isBeheerderVan(request.resource.data.groepId) && urlVeilig(request.resource.data.url);
     }
 
     match /scoutTakken/{takId} {

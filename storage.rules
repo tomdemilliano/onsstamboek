@@ -1,12 +1,24 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    // Let op: anders dan Firestore-rules gooit de Storage-rules-runtime een
+    // harde evaluatiefout (en dus een deny) bij het uitlezen van een custom
+    // claim die niet op het token staat -- en gewone groepsbeheerders krijgen
+    // nooit een `systeembeheerder`-claim. Daarom altijd via `in` afschermen,
+    // anders faalt élke schrijfactie van een gewone groepsbeheerder mee door
+    // de kortsluit-evaluatie van de `||` hieronder.
+    function isSysteembeheerder() {
+      return request.auth != null
+        && 'systeembeheerder' in request.auth.token
+        && request.auth.token.systeembeheerder == true;
+    }
+
     // Organisatie-brede bestanden (kentekens, scouting-mijlpalen): publiek
     // leesbaar, enkel de systeembeheerder schrijft. De systeembeheerder-rol
     // is enkel via een custom claim herkenbaar (net als in firestore.rules).
     match /organisaties/{organisatieId}/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.token.systeembeheerder == true;
+      allow write: if isSysteembeheerder();
     }
 
     // Groep-specifieke bestanden (scans, fotos, mijlpalen): publiek
@@ -20,7 +32,7 @@ service firebase.storage {
       allow read: if true;
       allow write: if request.auth != null
         && (
-          request.auth.token.systeembeheerder == true
+          isSysteembeheerder()
           || firestore.exists(/databases/(default)/documents/lidmaatschappen/$(request.auth.uid + '_' + groepId))
         );
     }
@@ -30,13 +42,22 @@ service firebase.storage {
     // inzending), maar enkel als het een afbeelding is onder de 8MB. De
     // Firestore-kant (status 'pending' tot goedkeuring) is de eigenlijke
     // inhoudelijke controle.
+    //
+    // Bewust een expliciete lijst i.p.v. 'image/.*': dat zou ook
+    // image/svg+xml toelaten, en een SVG kan ingebed <script>-JavaScript
+    // bevatten dat uitgevoerd wordt zodra iemand de opgeslagen URL
+    // rechtstreeks opent (bv. via de "open in nieuw tabblad"-link op de
+    // publieke fotopagina) -- een klassieke stored-XSS-route via
+    // bestandsupload, en hier zonder aanmelden bruikbaar. De app zelf
+    // heruploadt sowieso altijd een via canvas herberekende JPEG (zie
+    // lib/fotoUtils.ts resizeImageFile), dus dit sluit geen legitiem gebruik af.
     match /groepen/{groepId}/fotos/{fileName} {
       allow read: if true;
       allow create: if request.resource.size < 8 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+        && request.resource.contentType.matches('image/(jpeg|png|gif|webp)');
       allow update, delete: if request.auth != null
         && (
-          request.auth.token.systeembeheerder == true
+          isSysteembeheerder()
           || firestore.exists(/databases/(default)/documents/lidmaatschappen/$(request.auth.uid + '_' + groepId))
         );
     }

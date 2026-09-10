@@ -9,7 +9,8 @@
     "lint": "eslint",
     "migrate": "tsx scripts/migrate.ts",
     "set-systeembeheerder": "tsx scripts/setSysteembeheerder.ts",
-    "test:rules": "firebase emulators:exec --only firestore \"tsx scripts/testFirestoreRules.ts\""
+    "test:rules": "firebase emulators:exec --only firestore \"tsx scripts/testFirestoreRules.ts\"",
+    "test:rules:storage": "firebase emulators:exec --only firestore,storage \"tsx scripts/testStorageRules.ts\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
