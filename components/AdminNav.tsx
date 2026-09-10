@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useGroep } from "@/lib/groepContext";
 import { logout } from "@/lib/auth";
 import { colors, fonts } from "@/lib/theme";
+import { landingsafbeeldingStyle } from "@/lib/landingsafbeelding";
 import GroepWisselaar from "./GroepWisselaar";
 
 const SECTIES = [
@@ -43,8 +44,10 @@ export default function AdminNav() {
       >
         <Link href={basis} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", minWidth: 0 }}>
           {groep.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={groep.logoUrl} alt="" style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+            <div style={{ width: 26, height: 26, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={groep.logoUrl} alt="" style={landingsafbeeldingStyle(groep.logoPositie)} />
+            </div>
           ) : (
             <span style={{ fontSize: 18 }}>⛺</span>
           )}

@@ -10,9 +10,11 @@ import {
   PhotoFactory,
   GroepMijlpaalFactory,
   OrganisatieMijlpaalFactory,
+  OrganisatieFactory,
 } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import { LANDING_ASPECT_RATIO, landingsafbeeldingStyle } from "@/lib/landingsafbeelding";
+import type { Groep, Organisatie, WithId } from "@/types/models";
 
 interface Stats {
   leden: number;
@@ -35,6 +37,7 @@ export default function GroepLanding() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [weetjes, setWeetjes] = useState<Weetje[]>([]);
   const [weetje, setWeetje] = useState<Weetje | null>(null);
+  const [organisatie, setOrganisatie] = useState<WithId<Organisatie> | null>(null);
 
   useEffect(() => {
     let actief = true;
@@ -46,8 +49,10 @@ export default function GroepLanding() {
       PhotoFactory.getPublished(groep.id),
       GroepMijlpaalFactory.getPublished(groep.id),
       groep.organisatieId ? OrganisatieMijlpaalFactory.getPublished(groep.organisatieId) : Promise.resolve([]),
-    ]).then(([entries, locaties, extraLocaties, leiding, fotos, groepMijlpalen, organisatieMijlpalen]) => {
+      groep.organisatieId ? OrganisatieFactory.getById(groep.organisatieId) : Promise.resolve(null),
+    ]).then(([entries, locaties, extraLocaties, leiding, fotos, groepMijlpalen, organisatieMijlpalen, organisatie]) => {
       if (!actief) return;
+      setOrganisatie(organisatie);
 
       const gekoppeldeKampplaatsen = locaties.filter((l) => !l.genegeerd && l.lat != null && l.lng != null).length;
 
@@ -131,8 +136,11 @@ export default function GroepLanding() {
             textAlign: "center",
           }}
         >
-          <div style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: colors.campfire, marginBottom: 8 }}>
-            💡 Wist je dat...
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
+            <WeetjeAvatar type={weetje.type} groep={groep} organisatieLogoUrl={organisatie?.logoUrl} />
+            <span style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: colors.campfire }}>
+              💡 Wist je dat...
+            </span>
           </div>
           <div style={{ fontFamily: fonts.display, fontSize: 19, fontWeight: 700, color: colors.ink, marginBottom: weetje.beschrijving ? 6 : 0 }}>
             {weetje.jaar} — {weetje.titel}
@@ -158,6 +166,39 @@ function StatKaart({ label, waarde, icon }: { label: string; waarde: number | st
       <div style={{ fontSize: 20, marginBottom: 6 }}>{icon}</div>
       <div style={{ fontFamily: fonts.display, fontSize: 26, fontWeight: 700, color: colors.ink }}>{waarde}</div>
       <div style={{ fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted }}>{label}</div>
+    </div>
+  );
+}
+
+/** Toont links van "Wist je dat..." de avatar van de groep (🚩) of van de organisatie (⚜️), afhankelijk van welk type mijlpaal dit weetje is. */
+function WeetjeAvatar({ type, groep, organisatieLogoUrl }: { type: "scouting" | "groep"; groep: WithId<Groep>; organisatieLogoUrl?: string | null }) {
+  const url = type === "groep" ? groep.logoUrl : organisatieLogoUrl;
+  const positie = type === "groep" ? groep.logoPositie : undefined;
+
+  return (
+    <div
+      style={{
+        width: 26,
+        height: 26,
+        borderRadius: "50%",
+        overflow: "hidden",
+        flexShrink: 0,
+        background: colors.paperCard,
+        border: `1px solid ${colors.campfire}`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 13,
+      }}
+    >
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt="" style={landingsafbeeldingStyle(positie)} />
+      ) : type === "groep" ? (
+        "🚩"
+      ) : (
+        "⚜️"
+      )}
     </div>
   );
 }

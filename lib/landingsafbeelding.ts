@@ -1,5 +1,4 @@
 import type { CSSProperties } from "react";
-import type { Groep } from "@/types/models";
 
 /**
  * Beeldverhouding van het welkomstfoto-kader op de publieke groep-
@@ -11,6 +10,12 @@ import type { Groep } from "@/types/models";
  */
 export const LANDING_ASPECT_RATIO = "12 / 5";
 
+/** Beeldverhouding van de (ronde) avatar/profielfoto -- altijd vierkant, de cirkel komt van border-radius: 50%. */
+export const AVATAR_ASPECT_RATIO = "1 / 1";
+
+/** Kadrering (focuspunt + zoom) van een afbeelding -- gedeeld tussen welkomstfoto en avatar. */
+export type Kadrering = { x: number; y: number; zoom: number };
+
 /**
  * Vult x/y/zoom elk apart aan met hun standaardwaarde. Nodig omdat een
  * kadrering die opgeslagen werd vóór het zoom-veld bestond nog een
@@ -20,7 +25,7 @@ export const LANDING_ASPECT_RATIO = "12 / 5";
  * `value` laat en de browser die dan standaard in het midden zet i.p.v.
  * links (bij min=1).
  */
-export function normaliseerPositie(positie?: Groep["landingsafbeeldingPositie"]): { x: number; y: number; zoom: number } {
+export function normaliseerPositie(positie?: Kadrering | null): Kadrering {
   return { x: positie?.x ?? 50, y: positie?.y ?? 50, zoom: positie?.zoom ?? 1 };
 }
 
@@ -30,7 +35,7 @@ export function normaliseerPositie(positie?: Groep["landingsafbeeldingPositie"])
  * in/uitzoom toe -- zoomen blijft zo altijd gecentreerd op het gekozen
  * focuspunt, in elk kader ter grootte dan ook.
  */
-export function landingsafbeeldingStyle(positie?: Groep["landingsafbeeldingPositie"]): CSSProperties {
+export function landingsafbeeldingStyle(positie?: Kadrering | null): CSSProperties {
   const { x, y, zoom } = normaliseerPositie(positie);
   return {
     width: "100%",

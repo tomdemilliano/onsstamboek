@@ -33,6 +33,9 @@ export interface Groep {
   /** Algemeen contactadres van de groep (publiek zichtbaar), niet het e-mailadres van de sitebeheerder. */
   contactEmail?: string;
   logoUrl?: string | null;
+  logoPath?: string | null;
+  /** Kadrering van de avatar/profielfoto (zie logoUrl): x/y focuspunt als percentages (0-100, CSS object-position) + zoom (1 = geen extra zoom). */
+  logoPositie?: { x: number; y: number; zoom: number } | null;
   landingsafbeeldingUrl?: string | null;
   landingsafbeeldingPath?: string | null;
   /** Kadrering van de welkomstfoto: x/y focuspunt als percentages (0-100, CSS object-position) + zoom (1 = geen extra zoom). */
