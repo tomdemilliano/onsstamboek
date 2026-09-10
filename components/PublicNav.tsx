@@ -282,12 +282,7 @@ export default function PublicNav() {
         <div style={{ textAlign: "center", paddingTop: 24 }}>
           <Link href={basis} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center", flexWrap: "wrap", gap: 12 }}>
             {das1 && <DasIcon kleur1={das1.kleur1} kleur2={das1.kleur2} maat={48} />}
-            {groep.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={groep.logoUrl} alt={groep.naam} style={{ display: "inline-block", width: "100%", maxWidth: 420, height: "auto" }} />
-            ) : (
-              <span style={{ fontFamily: fonts.display, fontSize: 36, fontWeight: 700, color: colors.ink }}>{groep.naam}</span>
-            )}
+            <span style={{ fontFamily: fonts.display, fontSize: 36, fontWeight: 700, color: colors.ink }}>{groep.naam}</span>
             {das2 && <DasIcon kleur1={das2.kleur1} kleur2={das2.kleur2} maat={48} />}
           </Link>
         </div>
