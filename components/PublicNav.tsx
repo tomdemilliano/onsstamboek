@@ -49,6 +49,10 @@ function Kampvuurtje({ maat = 30 }: { maat?: number }) {
  * Vast, klein icoontje rechtsboven in beeld (blijft ook zichtbaar bij het
  * scrollen) -- een aparte, altijd-zichtbare kortere weg naar het
  * contactformulier van déze groep, i.p.v. enkel een link ergens in de nav.
+ * Op een smal scherm zou dit -- samen met AccountKnop ernaast -- achter het
+ * hamburger-icoon van de compacte balk vallen, dus daar via vb-navicon-vast
+ * verborgen (zie app/globals.css); Contact staat op mobiel in het
+ * uitklapmenu (zie MobielAccountSectie hieronder).
  */
 function ContactLink({ basis, naam }: { basis: string; naam: string }) {
   return (
@@ -56,6 +60,7 @@ function ContactLink({ basis, naam }: { basis: string; naam: string }) {
       href={`${basis}/contact`}
       title={`Contacteer ${naam}`}
       aria-label={`Contacteer ${naam}`}
+      className="vb-navicon-vast"
       style={{
         position: "fixed",
         top: 12,
@@ -106,35 +111,43 @@ const menuItemStyle: React.CSSProperties = {
   textDecoration: "none",
 };
 
+/** Zelfde look als de gewone links in het mobiele uitklapmenu (zie LINKS hieronder), voor de contact/aanmeld/beheer-rijen van MobielAccountSectie. */
+const mobielMenuItemStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  padding: "10px 14px",
+  borderRadius: radius.input,
+  fontFamily: fonts.body,
+  fontSize: 14,
+  fontWeight: 600,
+  textDecoration: "none",
+  color: colors.ink,
+  background: colors.paperCard,
+  border: `1.5px solid ${colors.line}`,
+};
+
+type AccountStatus = {
+  user: User | null | undefined;
+  systeembeheerder: boolean;
+  mijnGroepen: WithId<Groep>[];
+};
+
 /**
- * Vast icoontje rechtsboven, net naast ContactLink: aanmeldknop voor
- * groepsbeheerders (en systeembeheerders, die via dezelfde /aanmelden
- * binnenkomen) als niemand is aangemeld, anders de initialen van de
- * ingelogde gebruiker met een uitklapmenu (groepsbeheer/systeembeheer
- * openen, afmelden). Bewust hier i.p.v. op de platform-landingspagina --
- * dat is de plek waar nu al een vast contact-icoontje staat.
+ * Auth-status voor de publieke nav -- éénmaal opgehaald in PublicNav en
+ * gedeeld door zowel AccountKnop (het vaste icoontje, enkel op een breed
+ * scherm) als MobielAccountSectie (dezelfde info in het uitklapmenu op een
+ * smal scherm), zodat er geen 2 keer een auth-listener + lidmaatschappen-
+ * opzoeking loopt voor exact dezelfde gegevens.
  */
-function AccountKnop() {
-  const router = useRouter();
-  const pathname = usePathname();
+function useAccountStatus(): AccountStatus {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [systeembeheerder, setSysteembeheerder] = useState(false);
   const [mijnGroepen, setMijnGroepen] = useState<WithId<Groep>[]>([]);
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  // Zelfde patroon als de mobiele menu-sluiting in PublicNav hieronder:
-  // aanpassen tijdens het renderen bij een pad-wijziging, i.p.v. in een
-  // effect (geen overbodige extra render).
-  const [vorigePathname, setVorigePathname] = useState(pathname);
-  if (pathname !== vorigePathname) {
-    setVorigePathname(pathname);
-    setMenuOpen(false);
-  }
 
   useEffect(() => {
     return watchAuth((u) => {
       setUser(u);
-      setMenuOpen(false);
       if (!u) {
         setSysteembeheerder(false);
         setMijnGroepen([]);
@@ -147,26 +160,81 @@ function AccountKnop() {
     });
   }, []);
 
+  return { user, systeembeheerder, mijnGroepen };
+}
+
+type GroepDoel = { id: string; slug: string; naam: string };
+
+/**
+ * Welke groep de "Groepsbeheer openen"-snelkoppeling moet aanbieden: de
+ * laatst bezochte groep (cookie) als die er is, anders de enige groep
+ * waarvan de gebruiker beheerder is -- bij meerdere groepen (en geen
+ * cookie) toont de aanroeper zelf de volledige lijst.
+ * `actief` beschermt tegen het lezen van `document.cookie` tijdens SSR/de
+ * eerste render (voor allebei de menu's begint dat altijd op `false`).
+ */
+function bepaalGroepsbeheerDoel(actief: boolean, mijnGroepen: WithId<Groep>[]): GroepDoel | null {
+  if (!actief) return null;
+  const cookieSlug = getGroepCookie();
+  if (cookieSlug) return { id: cookieSlug, slug: cookieSlug, naam: "" };
+  return mijnGroepen.length === 1 ? mijnGroepen[0] : null;
+}
+
+/**
+ * Vast icoontje rechtsboven, net naast ContactLink: aanmeldknop voor
+ * groepsbeheerders (en systeembeheerders, die via dezelfde /aanmelden
+ * binnenkomen) als niemand is aangemeld, anders de initialen van de
+ * ingelogde gebruiker met een uitklapmenu (groepsbeheer/systeembeheer
+ * openen, afmelden). Bewust hier i.p.v. op de platform-landingspagina --
+ * dat is de plek waar nu al een vast contact-icoontje staat. Enkel
+ * zichtbaar op een breed scherm (vb-navicon-vast) -- op mobiel toont
+ * MobielAccountSectie dezelfde info in het uitklapmenu.
+ */
+function AccountKnop({ account }: { account: AccountStatus }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { user, systeembeheerder, mijnGroepen } = account;
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Zelfde patroon als de mobiele menu-sluiting in PublicNav hieronder:
+  // aanpassen tijdens het renderen bij een pad-wijziging, i.p.v. in een
+  // effect (geen overbodige extra render).
+  const [vorigePathname, setVorigePathname] = useState(pathname);
+  if (pathname !== vorigePathname) {
+    setVorigePathname(pathname);
+    setMenuOpen(false);
+  }
+
+  // Sluit het menu ook als de auth-status zelf wijzigt (bv. na afmelden).
+  const [vorigeUser, setVorigeUser] = useState(user);
+  if (user !== vorigeUser) {
+    setVorigeUser(user);
+    setMenuOpen(false);
+  }
+
   // Nog niet bekend of iemand is aangemeld -- niets tonen i.p.v. even kort
   // het verkeerde icoon te flitsen.
   if (user === undefined) return null;
 
   if (!user) {
     return (
-      <Link href="/aanmelden" title="Aanmelden voor groepsbeheerders" aria-label="Aanmelden" style={{ ...accountIconBasisStyle, background: colors.paperCard, border: `1.5px solid ${colors.line}` }}>
+      <Link
+        href="/aanmelden"
+        title="Aanmelden voor groepsbeheerders"
+        aria-label="Aanmelden"
+        className="vb-navicon-vast"
+        style={{ ...accountIconBasisStyle, background: colors.paperCard, border: `1.5px solid ${colors.line}` }}
+      >
         🔑
       </Link>
     );
   }
 
   const initialen = (user.email || "??").slice(0, 2).toUpperCase();
-  // Enkel lezen terwijl het menu open staat -- er is toch niets aan
-  // gekoppeld zolang niemand op de knop klikt.
-  const cookieSlug = menuOpen ? getGroepCookie() : null;
-  const groepDoel = cookieSlug ? { id: cookieSlug, slug: cookieSlug, naam: "" } : mijnGroepen.length === 1 ? mijnGroepen[0] : null;
+  const groepDoel = bepaalGroepsbeheerDoel(menuOpen, mijnGroepen);
 
   return (
-    <div style={{ position: "fixed", top: 12, right: 54, zIndex: 50 }}>
+    <div className="vb-navicon-vast" style={{ position: "fixed", top: 12, right: 54, zIndex: 50 }}>
       <button
         onClick={() => setMenuOpen((v) => !v)}
         aria-label="Account"
@@ -243,12 +311,67 @@ function AccountKnop() {
   );
 }
 
+/**
+ * Zelfde info als AccountKnop (contact, aanmelden/afmelden, systeembeheer/
+ * groepsbeheer), maar dan als rijen onderaan het mobiele uitklapmenu i.p.v.
+ * een apart vast icoontje -- dat zou op een smal scherm anders achter het
+ * hamburger-icoon van de compacte balk vallen. `actief` is het menuOpen van
+ * de compacte balk zelf (het uitklapmenu bestaat sowieso enkel dan).
+ */
+function MobielAccountSectie({ account, basis, actief, router }: { account: AccountStatus; basis: string; actief: boolean; router: ReturnType<typeof useRouter> }) {
+  const { user, systeembeheerder, mijnGroepen } = account;
+  const groepDoel = bepaalGroepsbeheerDoel(actief, mijnGroepen);
+
+  return (
+    <>
+      <div style={{ height: 1, background: colors.line, margin: "8px 4px" }} />
+
+      <Link href={`${basis}/contact`} style={mobielMenuItemStyle}>
+        <span aria-hidden="true">✉️</span> Contact
+      </Link>
+
+      {user === undefined ? null : !user ? (
+        <Link href="/aanmelden" style={mobielMenuItemStyle}>
+          <span aria-hidden="true">🔑</span> Aanmelden
+        </Link>
+      ) : (
+        <>
+          {systeembeheerder && (
+            <Link href="/systeembeheer" style={mobielMenuItemStyle}>
+              <span aria-hidden="true">🧭</span> Systeembeheer
+            </Link>
+          )}
+          {groepDoel && (
+            <Link href={`/${groepDoel.slug}/beheer`} style={mobielMenuItemStyle}>
+              <span aria-hidden="true">⚙️</span> Groepsbeheer
+            </Link>
+          )}
+          {!groepDoel &&
+            mijnGroepen.length > 1 &&
+            mijnGroepen.map((g) => (
+              <Link key={g.id} href={`/${g.slug}/beheer`} style={mobielMenuItemStyle}>
+                <span aria-hidden="true">⚙️</span> {g.naam}
+              </Link>
+            ))}
+          <button
+            onClick={() => logout().then(() => router.refresh())}
+            style={{ ...mobielMenuItemStyle, cursor: "pointer", width: "100%", textAlign: "left", color: colors.stamp }}
+          >
+            <span aria-hidden="true">🚪</span> Afmelden
+          </button>
+        </>
+      )}
+    </>
+  );
+}
+
 export default function PublicNav() {
   const groep = useGroep();
   const router = useRouter();
   const pathname = usePathname();
   const basis = `/${groep.slug}`;
   const [menuOpen, setMenuOpen] = useState(false);
+  const account = useAccountStatus();
 
   // Links naast de naam altijd das1 (als ingesteld); rechts das2 als de
   // groep die instelde, anders gewoon das1 nogmaals (groepen die nooit van
@@ -275,7 +398,7 @@ export default function PublicNav() {
   return (
     <div>
       <ContactLink basis={basis} naam={groep.naam} />
-      <AccountKnop />
+      <AccountKnop account={account} />
 
       {/* Volledige weergave -- vanaf een breder scherm */}
       <div className="vb-nav-groot">
@@ -335,7 +458,7 @@ export default function PublicNav() {
 
       {/* Compacte balk + uitklapmenu -- enkel op een smal scherm */}
       <div className="vb-nav-klein">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 44px 12px 16px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
           <Link href={basis} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
             <Kampvuurtje maat={26} />
             {das1 && <DasIcon kleur1={das1.kleur1} kleur2={das1.kleur2} maat={24} />}
@@ -396,6 +519,8 @@ export default function PublicNav() {
             >
               Niet jouw groep? Kies opnieuw
             </button>
+
+            <MobielAccountSectie account={account} basis={basis} actief={menuOpen} router={router} />
           </div>
         )}
       </div>
