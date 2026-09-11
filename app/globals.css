@@ -38,9 +38,12 @@ body {
   /* De vaste contact-/account-icoontjes rechtsboven (ContactLink,
      AccountKnop) vallen op een smal scherm achter het hamburger-icoon van
      de compacte balk -- daar staat dezelfde info als rijen onderaan het
-     uitklapmenu (zie MobielAccountSectie). */
+     uitklapmenu (zie MobielAccountSectie). !important is hier nodig: beide
+     componenten zetten zelf `display: flex` als inline style (voor de
+     brede weergave), en een inline style wint anders altijd van een
+     gewone stylesheet-regel, media query of niet. */
   .vb-navicon-vast {
-    display: none;
+    display: none !important;
   }
 }
 
