@@ -35,6 +35,13 @@ body {
   .vb-nav-klein {
     display: block;
   }
+  /* De vaste contact-/account-icoontjes rechtsboven (ContactLink,
+     AccountKnop) vallen op een smal scherm achter het hamburger-icoon van
+     de compacte balk -- daar staat dezelfde info als rijen onderaan het
+     uitklapmenu (zie MobielAccountSectie). */
+  .vb-navicon-vast {
+    display: none;
+  }
 }
 
 /* Jaren-schuifbalk op de tijdlijn (zie app/[groep]/(public)/tijdlijn). */
