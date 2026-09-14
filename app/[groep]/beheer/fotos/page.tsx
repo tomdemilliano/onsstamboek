@@ -6,6 +6,8 @@ import { useSearchParams } from "next/navigation";
 import { FeedbackFactory, PhotoFactory, PhotoTagFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import { rotateImageFile, decenniumLabel } from "@/lib/fotoUtils";
+import { weergaveNaam } from "@/lib/naamMatching";
+import { useNamenMap } from "@/lib/useNamenMap";
 import AdminSubNav from "@/components/AdminSubNav";
 import MemberTagPicker from "@/components/MemberTagPicker";
 import PhotoTagSelector from "@/components/PhotoTagSelector";
@@ -16,6 +18,7 @@ export default function FotosBeheerPage() {
   const groep = useGroep();
   const basis = `/${groep.slug}`;
   const searchParams = useSearchParams();
+  const namen = useNamenMap(groep.id);
 
   const [fotos, setFotos] = useState<WithId<Photo>[]>([]);
   const [alleTags, setAlleTags] = useState<WithId<PhotoTag>[]>([]);
@@ -180,7 +183,7 @@ export default function FotosBeheerPage() {
               <ThumbOfFout url={foto.afbeeldingUrl} />
               <div style={{ padding: "6px 8px", fontFamily: fonts.body, fontSize: 11, color: colors.inkMuted, minHeight: 16 }}>
                 {[foto.jaar || (foto.decennium != null ? decenniumLabel(foto.decennium) : null), foto.locatie].filter(Boolean).join(" · ")}
-                {(foto.ledenTags?.length ?? 0) > 0 && <div style={{ marginTop: 2 }}>{foto.ledenTags!.map((t) => t.naam).join(", ")}</div>}
+                {(foto.ledenTags?.length ?? 0) > 0 && <div style={{ marginTop: 2 }}>{foto.ledenTags!.map((t) => weergaveNaam(t, namen)).join(", ")}</div>}
                 {(foto.tagIds?.length ?? 0) > 0 && (
                   <div style={{ marginTop: 2, color: colors.forest, fontWeight: 600 }}>
                     {foto.tagIds!.map((id) => alleTags.find((t) => t.id === id)?.naam).filter(Boolean).join(", ")}

@@ -6,6 +6,8 @@ import { useGroep } from "@/lib/groepContext";
 import { TakFactory, LeidingFactory, FeedbackFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import { huidigWerkingsjaarStart, werkingsjaarLabel } from "@/lib/tijdlijnUtils";
+import { weergaveNaam } from "@/lib/naamMatching";
+import { useNamenMap } from "@/lib/useNamenMap";
 import AdminSubNav from "@/components/AdminSubNav";
 import MemberTagPicker from "@/components/MemberTagPicker";
 import type { Leidingsploeg, LidLeidingsploeg, ScoutTak, WithId } from "@/types/models";
@@ -14,6 +16,7 @@ export default function LeidingPage() {
   const groep = useGroep();
   const basis = `/${groep.slug}`;
   const searchParams = useSearchParams();
+  const namen = useNamenMap(groep.id);
 
   const [takken, setTakken] = useState<WithId<ScoutTak>[]>([]);
   const [leidingLijst, setLeidingLijst] = useState<WithId<Leidingsploeg>[]>([]);
@@ -207,7 +210,7 @@ export default function LeidingPage() {
                   }}
                 >
                   <span style={{ fontFamily: fonts.body, fontSize: 13, fontWeight: 700, color: colors.ink, minWidth: 100 }}>{takNaam}</span>
-                  <span style={{ flex: 1, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>{(item.leden || []).map((l) => l.naam).join(", ") || <em>geen leiding ingevuld</em>}</span>
+                  <span style={{ flex: 1, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>{(item.leden || []).map((l) => weergaveNaam(l, namen)).join(", ") || <em>geen leiding ingevuld</em>}</span>
                   {wachtOpGoedkeuring && (
                     <span style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 600, color: colors.campfire }}>⏳ Wacht op goedkeuring</span>
                   )}

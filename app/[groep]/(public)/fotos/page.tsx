@@ -6,12 +6,15 @@ import { useGroep } from "@/lib/groepContext";
 import { PhotoFactory, PhotoTagFactory } from "@/lib/dbSchema";
 import { colors, fonts, fontImports, radius } from "@/lib/theme";
 import { berekenFotoSorteerJaar, decenniumLabel } from "@/lib/fotoUtils";
+import { weergaveNaam } from "@/lib/naamMatching";
+import { useNamenMap } from "@/lib/useNamenMap";
 import TagFilterPicker from "@/components/TagFilterPicker";
 import type { Photo, PhotoTag, WithId } from "@/types/models";
 
 export default function FotosPage() {
   const groep = useGroep();
   const basis = `/${groep.slug}`;
+  const namen = useNamenMap(groep.id);
 
   const [fotos, setFotos] = useState<WithId<Photo>[]>([]);
   const [alleTags, setAlleTags] = useState<WithId<PhotoTag>[]>([]);
@@ -66,7 +69,7 @@ export default function FotosPage() {
         if (tagFilter.length > 0 && !tagFilter.every((t) => (f.tagIds || []).includes(t))) return false;
         if (ledenZoek.trim()) {
           const term = ledenZoek.trim().toLowerCase();
-          if (!(f.ledenTags || []).some((t) => t.naam.toLowerCase().includes(term))) return false;
+          if (!(f.ledenTags || []).some((t) => weergaveNaam(t, namen).toLowerCase().includes(term))) return false;
         }
         if (enkelOngetagd) {
           const ongetagd = !f.jaar && !f.locatie && (!f.ledenTags || f.ledenTags.length === 0);
@@ -74,7 +77,7 @@ export default function FotosPage() {
         }
         return true;
       }),
-    [fotos, jaarFilter, locatieFilter, tagFilter, ledenZoek, enkelOngetagd]
+    [fotos, jaarFilter, locatieFilter, tagFilter, ledenZoek, enkelOngetagd, namen]
   );
 
   // Onthoud de exacte volgorde die de bezoeker nu ziet (mét filters), zodat

@@ -7,6 +7,8 @@ import { useGroep } from "@/lib/groepContext";
 import { PhotoFactory, PhotoTagFactory, ActivityFactory } from "@/lib/dbSchema";
 import { colors, fonts, fontImports, radius } from "@/lib/theme";
 import { rotateImageFile, decenniumLabel } from "@/lib/fotoUtils";
+import { weergaveNaam } from "@/lib/naamMatching";
+import { useNamenMap } from "@/lib/useNamenMap";
 import MemberTagPicker from "@/components/MemberTagPicker";
 import PhotoTagSelector from "@/components/PhotoTagSelector";
 import type { LedenTag, Photo, PhotoTag, WithId } from "@/types/models";
@@ -18,6 +20,7 @@ export default function FotoDetailPage(props: PageProps<"/[groep]/fotos/[id]">) 
   const groep = useGroep();
   const basis = `/${groep.slug}`;
   const router = useRouter();
+  const namen = useNamenMap(groep.id);
 
   const [foto, setFoto] = useState<WithId<Photo> | null | undefined>(undefined);
   const [alleTags, setAlleTags] = useState<WithId<PhotoTag>[]>([]);
@@ -250,6 +253,7 @@ export default function FotoDetailPage(props: PageProps<"/[groep]/fotos/[id]">) 
         {volledigScherm && (
           <VolledigSchermOverlay
             foto={foto}
+            namen={namen}
             vorigeFoto={vorigeFoto}
             volgendeFoto={volgendeFoto}
             toonGetagdOverlay={toonGetagdOverlay}
@@ -275,7 +279,7 @@ export default function FotoDetailPage(props: PageProps<"/[groep]/fotos/[id]">) 
               <div style={{ background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "20px 22px", display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
                 <LeesVeld label="Jaar" waarde={foto.jaar ? String(foto.jaar) : foto.decennium != null ? decenniumLabel(foto.decennium) : ""} />
                 <LeesVeld label="Locatie" waarde={foto.locatie} />
-                <LeesVeld label="Wie staat erop?" waarde={(foto.ledenTags || []).map((t) => t.naam).join(", ")} />
+                <LeesVeld label="Wie staat erop?" waarde={(foto.ledenTags || []).map((t) => weergaveNaam(t, namen)).join(", ")} />
                 <LeesVeld label="Categorie" waarde={(foto.tagIds || []).map((tid) => alleTags.find((t) => t.id === tid)?.naam).filter(Boolean).join(", ")} />
                 <LeesVeld label="Extra info" waarde={foto.beschrijving} />
 
@@ -401,6 +405,7 @@ const inputStyle: React.CSSProperties = {
 
 function VolledigSchermOverlay({
   foto,
+  namen,
   vorigeFoto,
   volgendeFoto,
   toonGetagdOverlay,
@@ -409,6 +414,7 @@ function VolledigSchermOverlay({
   onNavigeer,
 }: {
   foto: WithId<Photo>;
+  namen: Map<string, string>;
   vorigeFoto: { id: string } | null;
   volgendeFoto: { id: string } | null;
   toonGetagdOverlay: boolean;
@@ -457,7 +463,7 @@ function VolledigSchermOverlay({
               <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: colors.white, borderRadius: radius.card, padding: "10px 14px", minWidth: 150, boxShadow: "0 6px 18px rgba(0,0,0,0.4)" }}>
                 {(foto.ledenTags || []).map((t, i) => (
                   <div key={i} style={{ fontFamily: fonts.body, fontSize: 13, color: colors.ink, padding: "3px 0" }}>
-                    {t.naam}
+                    {weergaveNaam(t, namen)}
                   </div>
                 ))}
               </div>
