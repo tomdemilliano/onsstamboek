@@ -48,7 +48,10 @@ service cloud.firestore {
         && request.resource.data.werkingsjaarStart < 2200
         && request.resource.data.leden is list
         && request.resource.data.leden.size() < 30
-        && request.resource.data.goedgekeurd == false;
+        && request.resource.data.goedgekeurd == false
+        && request.resource.data.email is string
+        && request.resource.data.email.size() > 0
+        && request.resource.data.email.size() < 200;
     }
 
     // -----------------------------------------------------------------
@@ -142,7 +145,8 @@ service cloud.firestore {
         && request.resource.data.periode.size() < 100
         && request.resource.data.leuksteActiviteit.size() < 500
         && request.resource.data.besteKampplaats.size() < 10
-        && request.resource.data.lekkersteEten.size() < 10;
+        && request.resource.data.lekkersteEten.size() < 10
+        && (!('email' in request.resource.data) || (request.resource.data.email is string && request.resource.data.email.size() < 200));
 
       // "Stub"-oudlid: automatisch aangemaakt bij het taggen van een naam
       // zonder eigen fiche.
@@ -172,7 +176,8 @@ service cloud.firestore {
         && request.resource.data.periode.size() < 100
         && request.resource.data.leuksteActiviteit.size() < 500
         && request.resource.data.besteKampplaats.size() < 10
-        && request.resource.data.lekkersteEten.size() < 10;
+        && request.resource.data.lekkersteEten.size() < 10
+        && (!('email' in request.resource.data) || (request.resource.data.email is string && request.resource.data.email.size() < 200));
     }
 
     // -----------------------------------------------------------------
@@ -413,7 +418,26 @@ service cloud.firestore {
         && (!('taggedEntryIds' in request.resource.data) || (request.resource.data.taggedEntryIds is list && request.resource.data.taggedEntryIds.size() < 30))
         && (!('tagIds' in request.resource.data) || (request.resource.data.tagIds is list && request.resource.data.tagIds.size() < 20))
         && (!('verwijderReden' in request.resource.data) || (request.resource.data.verwijderReden is string && request.resource.data.verwijderReden.size() < 300))
-        && (!('verwijderEmail' in request.resource.data) || (request.resource.data.verwijderEmail is string && request.resource.data.verwijderEmail.size() < 200));
+        && (!('verwijderEmail' in request.resource.data) || (request.resource.data.verwijderEmail is string && request.resource.data.verwijderEmail.size() < 200))
+        && (!('verwijderAangevraagdOp' in request.resource.data) || request.resource.data.verwijderAangevraagdOp is timestamp);
+    }
+
+    // -----------------------------------------------------------------
+    // feedbackWachtrij & verzondenMails (feedback-/notificatiemails, zie
+    // app/api/feedback en app/api/cron/dagelijkse-job) -- enkel gelezen
+    // door de groepsbeheerder, nooit rechtstreeks door een client
+    // beschreven: dat gebeurt uitsluitend server-side met de Admin SDK,
+    // die sowieso buiten deze rules om werkt. `allow write: if false` is
+    // hier dus geen omissie maar een bewuste bevestiging.
+    // -----------------------------------------------------------------
+    match /feedbackWachtrij/{id} {
+      allow read: if isBeheerderVan(resource.data.groepId);
+      allow write: if false;
+    }
+
+    match /verzondenMails/{id} {
+      allow read: if isBeheerderVan(resource.data.groepId);
+      allow write: if false;
     }
   }
 }

@@ -55,6 +55,10 @@ export interface Groep {
   dasKleur2?: string | null;
   das2Kleur1?: string | null;
   das2Kleur2?: string | null;
+  /** Per contentsoort: stuurt een feedbackmail naar de indiener meteen na goed-/afkeuring, of enkel gebundeld via de nachtelijke job. Ontbrekende sleutels vallen terug op een code-default (zie lib/feedbackMail.ts). */
+  feedbackTiming?: Partial<Record<FeedbackCategorie, FeedbackTiming>>;
+  /** Tijdstip van de vorige "nieuwe items"-notificatiemail aan de groepsbeheerders -- enkel items die daarna zijn binnengekomen tellen mee voor de volgende run. */
+  laatsteAdminNotificatieOp?: Timestamp | null;
   status: GroepStatus;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -128,6 +132,8 @@ export interface Entry {
   status: EntryStatus;
   goedgekeurd?: boolean;
   koppelingBevestigd?: boolean;
+  /** E-mailadres van wie de fiche indiende -- enkel zichtbaar voor de beheerder, voor feedback over goed-/afkeuring. */
+  email?: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -158,6 +164,8 @@ export interface Photo {
   verwijderReden?: string;
   /** E-mailadres van wie de verwijdering aanvraagt -- enkel zichtbaar voor de beheerder, zodat die feedback kan geven over de beslissing. */
   verwijderEmail?: string;
+  /** Tijdstip van het verwijderverzoek zelf -- anders dan createdAt (de oorspronkelijke upload), nodig om een net binnengekomen verzoek op een oude foto als "nieuw" te herkennen voor de beheerder-notificatiemail. */
+  verwijderAangevraagdOp?: Timestamp | null;
   createdAt?: Timestamp;
 }
 
@@ -198,6 +206,8 @@ export interface Leidingsploeg {
   werkingsjaarStart: number;
   leden: LidLeidingsploeg[];
   goedgekeurd?: boolean;
+  /** E-mailadres van wie de aanvulling/correctie indiende -- enkel zichtbaar voor de beheerder, voor feedback over goed-/afkeuring. */
+  email?: string;
   updatedAt?: Timestamp;
 }
 
@@ -298,4 +308,49 @@ export interface Statistiek {
   dag: string;
   pad: string;
   aantal: number;
+}
+
+// ---------------------------------------------------------------------------
+// Feedback- en notificatiemails (zie lib/feedbackMail.ts, app/api/feedback,
+// app/api/cron/dagelijkse-job)
+// ---------------------------------------------------------------------------
+
+/** Contentsoorten waarvoor een indiener feedback (goedgekeurd/afgewezen) kan krijgen. */
+export type FeedbackCategorie = "fiche" | "wijziging" | "foto" | "kampplaats" | "mijlpaal" | "leidingsploeg";
+export type FeedbackTiming = "onmiddellijk" | "nachtelijk";
+export type FeedbackActie = "goedgekeurd" | "afgewezen";
+
+/**
+ * Eén nog te versturen feedback-item voor een "nachtelijke" categorie --
+ * geschreven door app/api/feedback, gedraineerd en verwijderd door de
+ * dagelijkse cron zodra de gebundelde mail voor groepId+ontvangerEmail
+ * verstuurd is. Nooit rechtstreeks door een client gelezen/geschreven.
+ */
+export interface FeedbackWachtrijItem {
+  groepId: string;
+  ontvangerEmail: string;
+  categorie: FeedbackCategorie;
+  actie: FeedbackActie;
+  referentie: string;
+  itemId?: string | null;
+  createdAt?: Timestamp;
+}
+
+/**
+ * Mailhistoriek, zichtbaar voor de groepsbeheerder (tabblad onder Contact).
+ * `soort` onderscheidt een feedbackmail (naar een indiener) van een
+ * beheerder-notificatiemail (naar de groepsbeheerder(s) zelf) -- voor
+ * `soort:"notificatie"` is `type` altijd `"nachtelijk"`. Enkel door de
+ * Admin SDK geschreven; 3 maanden bewaard (opgeruimd door dezelfde cron).
+ */
+export interface VerzondenMail {
+  groepId: string;
+  soort: "feedback" | "notificatie";
+  ontvanger: string;
+  onderwerp: string;
+  inhoud: string;
+  type: FeedbackTiming;
+  categorieën: FeedbackCategorie[];
+  aantalItems: number;
+  createdAt?: Timestamp;
 }

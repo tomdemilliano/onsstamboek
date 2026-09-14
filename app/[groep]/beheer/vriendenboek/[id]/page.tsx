@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useGroep } from "@/lib/groepContext";
-import { EntryFactory } from "@/lib/dbSchema";
+import { EntryFactory, FeedbackFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import AdminSubNav from "@/components/AdminSubNav";
 import EntryVeldenEditor, { LEGE_ENTRY_VELDEN, opgeschoond, type EntryVelden } from "@/components/EntryVeldenEditor";
@@ -63,11 +63,13 @@ export default function BewerkFichePage(props: PageProps<"/[groep]/beheer/vriend
 
   async function publiceren() {
     await EntryFactory.publish(id);
+    await FeedbackFactory.stuur({ groepId: groep.id, categorie: "fiche", actie: "goedgekeurd", ontvangerEmail: entry?.email, referentie: entry?.naam || "" });
     router.push(`${basis}/beheer/vriendenboek`);
   }
 
   async function keurGoed() {
     await EntryFactory.keurGoed(id);
+    await FeedbackFactory.stuur({ groepId: groep.id, categorie: "fiche", actie: "goedgekeurd", ontvangerEmail: entry?.email, referentie: entry?.naam || "" });
     router.push(`${basis}/beheer/vriendenboek`);
   }
 

@@ -121,6 +121,11 @@ async function seed() {
 
     await setDoc(doc(db, "organisaties", `${ORG_ID}/kentekens`, "k1"), { startJaar: 2020, jaarleuze: "x" });
     await setDoc(doc(db, "organisaties", `${ORG_ID}/mijlpalen`, "m1"), { status: "published", jaar: 2020, titel: "x" });
+
+    await setDoc(doc(db, "feedbackWachtrij", "wachtrijA"), { groepId: GROEP_A, ontvangerEmail: "x@x.be", categorie: "foto", actie: "goedgekeurd", referentie: "x" });
+    await setDoc(doc(db, "feedbackWachtrij", "wachtrijB"), { groepId: GROEP_B, ontvangerEmail: "x@x.be", categorie: "foto", actie: "goedgekeurd", referentie: "x" });
+    await setDoc(doc(db, "verzondenMails", "mailA"), { groepId: GROEP_A, soort: "feedback", ontvanger: "x@x.be", onderwerp: "x", inhoud: "x", type: "onmiddellijk", categorieën: ["foto"], aantalItems: 1 });
+    await setDoc(doc(db, "verzondenMails", "mailB"), { groepId: GROEP_B, soort: "feedback", ontvanger: "x@x.be", onderwerp: "x", inhoud: "x", type: "onmiddellijk", categorieën: ["foto"], aantalItems: 1 });
   });
 }
 
@@ -317,14 +322,17 @@ async function main() {
     assertFails(updateDoc(doc(b, "leidingsploegen", "leidingA"), { leden: [] }))
   );
   await test("anoniem stelt een correctie voor op leidingsploeg van groep A (blijft 'wacht op goedkeuring')", () =>
-    assertSucceeds(updateDoc(doc(anon, "leidingsploegen", "leidingA"), { groepId: GROEP_A, takId: "tak1", werkingsjaarStart: 2023, leden: [], goedgekeurd: false }))
+    assertSucceeds(updateDoc(doc(anon, "leidingsploegen", "leidingA"), { groepId: GROEP_A, takId: "tak1", werkingsjaarStart: 2023, leden: [], goedgekeurd: false, email: "bezoeker@voorbeeld.be" }))
+  );
+  await test("anoniem kan GEEN correctie voorstellen zonder e-mailadres", () =>
+    assertFails(updateDoc(doc(anon, "leidingsploegen", "leidingB"), { groepId: GROEP_B, takId: "tak1", werkingsjaarStart: 2023, leden: [], goedgekeurd: false }))
   );
   await test("anoniem kan zijn eigen correctie NIET meteen als goedgekeurd markeren", () =>
-    assertFails(updateDoc(doc(anon, "leidingsploegen", "leidingA"), { groepId: GROEP_A, takId: "tak1", werkingsjaarStart: 2023, leden: [], goedgekeurd: true }))
+    assertFails(updateDoc(doc(anon, "leidingsploegen", "leidingA"), { groepId: GROEP_A, takId: "tak1", werkingsjaarStart: 2023, leden: [], goedgekeurd: true, email: "bezoeker@voorbeeld.be" }))
   );
   await test("beheerder A keurt eigen leidingsploeg wel goed", () => assertSucceeds(updateDoc(doc(a, "leidingsploegen", "leidingA"), { goedgekeurd: true })));
   await test("anoniem kaapt leidingsploeg van groep A NIET door groepId te herschrijven naar groep B (document-id is voorspelbaar!)", () =>
-    assertFails(updateDoc(doc(anon, "leidingsploegen", "leidingA"), { groepId: GROEP_B, takId: "tak1", werkingsjaarStart: 2023, leden: [], goedgekeurd: false }))
+    assertFails(updateDoc(doc(anon, "leidingsploegen", "leidingA"), { groepId: GROEP_B, takId: "tak1", werkingsjaarStart: 2023, leden: [], goedgekeurd: false, email: "bezoeker@voorbeeld.be" }))
   );
   await test("beheerder A verplaatst eigen leidingsploeg niet stiekem naar groep B", () =>
     assertFails(updateDoc(doc(a, "leidingsploegen", "leidingA"), { groepId: GROEP_B }))
@@ -356,6 +364,30 @@ async function main() {
       addDoc(collection(anon, "wijzigingsVoorstellen"), {
         groepId: GROEP_B, entryId: "entryA-published", status: "pending", email: "x@x.be",
         naam: "x", geboortejaar: "", totemnaam: "", periode: "", leuksteActiviteit: [], besteKampplaats: [], lekkersteEten: [],
+      })
+    )
+  );
+
+  console.log("\n== feedbackWachtrij & verzondenMails (enkel Admin SDK schrijft, beheerder leest eigen groep) ==");
+  await test("beheerder A leest feedbackWachtrij van eigen groep", () => assertSucceeds(getDoc(doc(a, "feedbackWachtrij", "wachtrijA"))));
+  await test("beheerder B leest feedbackWachtrij van groep A NIET", () => assertFails(getDoc(doc(b, "feedbackWachtrij", "wachtrijA"))));
+  await test("systeembeheerder leest feedbackWachtrij van om het even welke groep", () => assertSucceeds(getDoc(doc(sys, "feedbackWachtrij", "wachtrijB"))));
+  await test("anoniem leest feedbackWachtrij NIET", () => assertFails(getDoc(doc(anon, "feedbackWachtrij", "wachtrijA"))));
+  await test("beheerder A schrijft NIET rechtstreeks naar feedbackWachtrij (enkel Admin SDK)", () =>
+    assertFails(setDoc(doc(a, "feedbackWachtrij", "wachtrijNieuw"), { groepId: GROEP_A, ontvangerEmail: "x@x.be", categorie: "foto", actie: "goedgekeurd", referentie: "x" }))
+  );
+  await test("systeembeheerder schrijft NIET rechtstreeks naar feedbackWachtrij (enkel Admin SDK)", () =>
+    assertFails(setDoc(doc(sys, "feedbackWachtrij", "wachtrijNieuw"), { groepId: GROEP_A, ontvangerEmail: "x@x.be", categorie: "foto", actie: "goedgekeurd", referentie: "x" }))
+  );
+
+  await test("beheerder A leest verzondenMails van eigen groep", () => assertSucceeds(getDoc(doc(a, "verzondenMails", "mailA"))));
+  await test("beheerder B leest verzondenMails van groep A NIET", () => assertFails(getDoc(doc(b, "verzondenMails", "mailA"))));
+  await test("systeembeheerder leest verzondenMails van om het even welke groep", () => assertSucceeds(getDoc(doc(sys, "verzondenMails", "mailB"))));
+  await test("anoniem leest verzondenMails NIET", () => assertFails(getDoc(doc(anon, "verzondenMails", "mailA"))));
+  await test("beheerder A schrijft NIET rechtstreeks naar verzondenMails (enkel Admin SDK)", () =>
+    assertFails(
+      setDoc(doc(a, "verzondenMails", "mailNieuw"), {
+        groepId: GROEP_A, soort: "feedback", ontvanger: "x@x.be", onderwerp: "x", inhoud: "x", type: "onmiddellijk", categorieën: ["foto"], aantalItems: 1,
       })
     )
   );

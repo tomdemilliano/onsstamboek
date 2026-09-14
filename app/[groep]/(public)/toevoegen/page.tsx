@@ -14,6 +14,7 @@ export default function ToevoegenPage() {
   const basis = `/${groep.slug}`;
 
   const [fields, setFields] = useState<EntryVelden>(LEGE_ENTRY_VELDEN);
+  const [email, setEmail] = useState("");
   const [versturen, setVersturen] = useState(false);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
   const [verzonden, setVerzonden] = useState(false);
@@ -47,6 +48,10 @@ export default function ToevoegenPage() {
       setFoutmelding("Vul minstens je naam in.");
       return;
     }
+    if (!email.trim() || !email.includes("@")) {
+      setFoutmelding("Vul een geldig e-mailadres in.");
+      return;
+    }
     if (!checkSom()) {
       setFoutmelding("Dat is niet het juiste antwoord op de rekensom — probeer opnieuw.");
       return;
@@ -58,7 +63,7 @@ export default function ToevoegenPage() {
 
     setVersturen(true);
     try {
-      const schoon = opgeschoond(fields);
+      const schoon = { ...opgeschoond(fields), email: email.trim() };
       if (gekozenStub) {
         await EntryFactory.upgradeStubMetFormulier(gekozenStub.id, schoon);
         await ActivityFactory.log(groep.id, {
@@ -181,6 +186,20 @@ export default function ToevoegenPage() {
           )}
 
           <EntryVeldenEditor fields={fields} onChange={setFields} />
+
+          <div>
+            <label style={{ display: "block", fontFamily: fonts.body, fontSize: 12, fontWeight: 600, color: colors.inkMuted, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>
+              Je e-mailadres
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="jouw@email.be"
+              style={{ width: "100%", padding: "10px 12px", borderRadius: radius.input, border: `1px solid ${colors.line}`, background: colors.white, fontFamily: fonts.body, fontSize: 14, color: colors.ink, boxSizing: "border-box" }}
+            />
+            <p style={{ fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted, marginTop: 4 }}>Enkel zichtbaar voor de beheerder, voor eventuele vragen — niet publiek.</p>
+          </div>
 
           {HoneypotField}
           {CaptchaField}

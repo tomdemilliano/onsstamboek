@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useGroep } from "@/lib/groepContext";
-import { EntryFactory, WijzigingFactory } from "@/lib/dbSchema";
+import { EntryFactory, FeedbackFactory, WijzigingFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import AdminSubNav from "@/components/AdminSubNav";
 import type { Entry, WijzigingsVoorstel, WithId } from "@/types/models";
@@ -85,7 +85,9 @@ export default function WijzigingenPage() {
   async function handleGoedkeuren(voorstel: WithId<WijzigingsVoorstel>) {
     setBezigVoor(voorstel.id);
     try {
+      const referentie = entries[voorstel.entryId]?.naam || voorstel.naam || "";
       await WijzigingFactory.goedkeuren(voorstel);
+      await FeedbackFactory.stuur({ groepId: groep.id, categorie: "wijziging", actie: "goedgekeurd", ontvangerEmail: voorstel.email, referentie });
       await load();
     } finally {
       setBezigVoor(null);
@@ -96,7 +98,9 @@ export default function WijzigingenPage() {
     if (!confirm("Dit wijzigingsvoorstel weigeren? De fiche blijft dan ongewijzigd.")) return;
     setBezigVoor(voorstel.id);
     try {
+      const referentie = entries[voorstel.entryId]?.naam || voorstel.naam || "";
       await WijzigingFactory.weigeren(voorstel.id);
+      await FeedbackFactory.stuur({ groepId: groep.id, categorie: "wijziging", actie: "afgewezen", ontvangerEmail: voorstel.email, referentie });
       await load();
     } finally {
       setBezigVoor(null);

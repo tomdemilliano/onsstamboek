@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useGroep } from "@/lib/groepContext";
-import { EntryFactory, LocationFactory } from "@/lib/dbSchema";
+import { EntryFactory, FeedbackFactory, LocationFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import { toTextArray } from "@/lib/textUtils";
 import AdminSubNav from "@/components/AdminSubNav";
@@ -56,8 +56,9 @@ export default function VriendenboekPage() {
 
   const isGoedTeKeuren = (entry: Entry) => entry.status === "draft" || (entry.status === "published" && entry.goedgekeurd === false);
 
-  async function handlePublish(id: string) {
-    await EntryFactory.publish(id);
+  async function handlePublish(entry: WithId<Entry>) {
+    await EntryFactory.publish(entry.id);
+    await FeedbackFactory.stuur({ groepId: groep.id, categorie: "fiche", actie: "goedgekeurd", ontvangerEmail: entry.email, referentie: entry.naam });
     load();
   }
 
@@ -66,8 +67,9 @@ export default function VriendenboekPage() {
     load();
   }
 
-  async function handleKeurGoed(id: string) {
-    await EntryFactory.keurGoed(id);
+  async function handleKeurGoed(entry: WithId<Entry>) {
+    await EntryFactory.keurGoed(entry.id);
+    await FeedbackFactory.stuur({ groepId: groep.id, categorie: "fiche", actie: "goedgekeurd", ontvangerEmail: entry.email, referentie: entry.naam });
     load();
   }
 
@@ -78,6 +80,12 @@ export default function VriendenboekPage() {
     } else {
       if (!confirm(`"${entry.naam}" definitief verwijderen?`)) return;
       await EntryFactory.remove(entry.id, entry.scanPath);
+      // Enkel als "afgewezen" melden als het nog een openstaande inzending
+      // was -- het verwijderen van een reeds goedgekeurde, gepubliceerde
+      // fiche is gewone opkuis, geen afwijzing van een indiening.
+      if (entry.goedgekeurd !== true) {
+        await FeedbackFactory.stuur({ groepId: groep.id, categorie: "fiche", actie: "afgewezen", ontvangerEmail: entry.email, referentie: entry.naam });
+      }
     }
     load();
   }
@@ -233,12 +241,12 @@ export default function VriendenboekPage() {
                       Bewerken
                     </Link>
                     {entry.status === "draft" && (
-                      <button onClick={() => handlePublish(entry.id)} style={btnStyle(colors.forest)}>
+                      <button onClick={() => handlePublish(entry)} style={btnStyle(colors.forest)}>
                         Publiceren
                       </button>
                     )}
                     {entry.status === "published" && entry.goedgekeurd === false && (
-                      <button onClick={() => handleKeurGoed(entry.id)} style={btnStyle(colors.forest)}>
+                      <button onClick={() => handleKeurGoed(entry)} style={btnStyle(colors.forest)}>
                         ✓ Goedkeuren
                       </button>
                     )}

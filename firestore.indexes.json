@@ -18,6 +18,16 @@
       ]
     },
     {
+      "collectionGroup": "entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groepId", "order": "ASCENDING" },
+        { "fieldPath": "goedgekeurd", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "links",
       "queryScope": "COLLECTION",
       "fields": [
@@ -34,7 +44,42 @@
       ]
     },
     {
+      "collectionGroup": "photos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groepId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "photos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groepId", "order": "ASCENDING" },
+        { "fieldPath": "verwijderVerzoek", "order": "ASCENDING" },
+        { "fieldPath": "verwijderAangevraagdOp", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "milestones",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groepId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "milestones",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groepId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "extraLocations",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "groepId", "order": "ASCENDING" },
@@ -46,7 +91,34 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "groepId", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" }
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "leidingsploegen",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groepId", "order": "ASCENDING" },
+        { "fieldPath": "goedgekeurd", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "contactBerichten",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groepId", "order": "ASCENDING" },
+        { "fieldPath": "gelezen", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "wijzigingsVoorstellen",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groepId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
     },
     {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useGroep } from "@/lib/groepContext";
-import { TakFactory, LeidingFactory } from "@/lib/dbSchema";
+import { TakFactory, LeidingFactory, FeedbackFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import { huidigWerkingsjaarStart, werkingsjaarLabel } from "@/lib/tijdlijnUtils";
 import AdminSubNav from "@/components/AdminSubNav";
@@ -98,11 +98,30 @@ export default function LeidingPage() {
     const takNaam = takken.find((t) => t.id === item.takId)?.naam || item.takId;
     if (!confirm(`Leidingsploeg ${takNaam} ${werkingsjaarLabel(item.werkingsjaarStart)} verwijderen?`)) return;
     await LeidingFactory.remove(groep.id, item.takId, item.werkingsjaarStart);
+    // Enkel "afgewezen" melden als het nog een openstaande correctie was --
+    // het verwijderen van een al goedgekeurde leidingsploeg is gewone opkuis.
+    if (item.goedgekeurd === false) {
+      await FeedbackFactory.stuur({
+        groepId: groep.id,
+        categorie: "leidingsploeg",
+        actie: "afgewezen",
+        ontvangerEmail: item.email,
+        referentie: `${takNaam} ${werkingsjaarLabel(item.werkingsjaarStart)}`,
+      });
+    }
     load();
   }
 
   async function goedkeuren(item: WithId<Leidingsploeg>) {
     await LeidingFactory.keurGoed(groep.id, item.takId, item.werkingsjaarStart);
+    const takNaam = takken.find((t) => t.id === item.takId)?.naam || item.takId;
+    await FeedbackFactory.stuur({
+      groepId: groep.id,
+      categorie: "leidingsploeg",
+      actie: "goedgekeurd",
+      ontvangerEmail: item.email,
+      referentie: `${takNaam} ${werkingsjaarLabel(item.werkingsjaarStart)}`,
+    });
     load();
   }
 
