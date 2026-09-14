@@ -6,20 +6,23 @@ import { useGroep } from "@/lib/groepContext";
 import { GroepFactory, OrganisatieFactory, PhotoFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import { AVATAR_ASPECT_RATIO, LANDING_ASPECT_RATIO, type Kadrering, landingsafbeeldingStyle, normaliseerPositie } from "@/lib/landingsafbeelding";
-import { FEEDBACK_LABELS, bepaalFeedbackTiming } from "@/lib/feedbackMail";
 import DasIcon from "@/components/DasIcon";
-import type { FeedbackCategorie, FeedbackTiming, Organisatie, Photo, WithId } from "@/types/models";
+import AdminSubNav from "@/components/AdminSubNav";
+import type { Organisatie, Photo, WithId } from "@/types/models";
 
 const STANDAARD_DASKLEUR_1 = "#3E5B45";
 const STANDAARD_DASKLEUR_2 = "#F4B860";
 const STANDAARD_DAS2KLEUR_1 = "#8C3B2E";
 const STANDAARD_DAS2KLEUR_2 = "#FBF7EC";
 
-const FEEDBACK_CATEGORIEËN: FeedbackCategorie[] = ["fiche", "wijziging", "foto", "kampplaats", "mijlpaal", "leidingsploeg"];
-
 export default function GroepInstellingen() {
   const groep = useGroep();
   const router = useRouter();
+  const basis = `/${groep.slug}`;
+  const tabs = [
+    { href: `${basis}/beheer/instellingen`, label: "Groepsinstellingen", exact: true },
+    { href: `${basis}/beheer/instellingen/beheerder`, label: "Beheerder instellingen" },
+  ];
 
   const [naam, setNaam] = useState(groep.naam);
   const [gemeente, setGemeente] = useState(groep.gemeente ?? "");
@@ -33,13 +36,6 @@ export default function GroepInstellingen() {
   const [toonDas2, setToonDas2] = useState(Boolean(groep.das2Kleur1 && groep.das2Kleur2));
   const [das2Kleur1, setDas2Kleur1] = useState(groep.das2Kleur1 || STANDAARD_DAS2KLEUR_1);
   const [das2Kleur2, setDas2Kleur2] = useState(groep.das2Kleur2 || STANDAARD_DAS2KLEUR_2);
-  const [feedbackTiming, setFeedbackTiming] = useState<Record<FeedbackCategorie, FeedbackTiming>>(() => {
-    const result = {} as Record<FeedbackCategorie, FeedbackTiming>;
-    FEEDBACK_CATEGORIEËN.forEach((categorie) => {
-      result[categorie] = bepaalFeedbackTiming(groep.feedbackTiming, categorie);
-    });
-    return result;
-  });
   const [bezig, setBezig] = useState(false);
   const [opgeslagen, setOpgeslagen] = useState(false);
 
@@ -79,7 +75,6 @@ export default function GroepInstellingen() {
         dasKleur2: toonDas ? dasKleur2 : null,
         das2Kleur1: toonDas && toonDas2 ? das2Kleur1 : null,
         das2Kleur2: toonDas && toonDas2 ? das2Kleur2 : null,
-        feedbackTiming,
       });
       setOpgeslagen(true);
       router.refresh();
@@ -171,9 +166,10 @@ export default function GroepInstellingen() {
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "32px 20px 80px" }}>
       <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Instellingen</h1>
-      <p style={{ fontFamily: fonts.body, fontSize: 14, color: colors.inkMuted, marginBottom: 28 }}>
+      <p style={{ fontFamily: fonts.body, fontSize: 14, color: colors.inkMuted, marginBottom: 20 }}>
         Basisgegevens van de groep, publiek zichtbaar op &quot;over de groep&quot;.
       </p>
+      <AdminSubNav tabs={tabs} />
 
       <div style={{ background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "20px 22px", marginBottom: 24, display: "flex", flexDirection: "column", gap: 12 }}>
         <span style={{ display: "block", fontFamily: fonts.body, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: colors.inkMuted }}>
@@ -352,99 +348,82 @@ export default function GroepInstellingen() {
         )}
       </div>
 
-      <form onSubmit={opslaan} style={{ background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "24px 26px", display: "flex", flexDirection: "column", gap: 16 }}>
-        <Veld label="Naam">
-          <input value={naam} onChange={(e) => setNaam(e.target.value)} required style={inputStyle} />
-        </Veld>
+      <form onSubmit={opslaan} style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <div style={{ background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "24px 26px", display: "flex", flexDirection: "column", gap: 16 }}>
+          <Veld label="Naam">
+            <input value={naam} onChange={(e) => setNaam(e.target.value)} required style={inputStyle} />
+          </Veld>
 
-        <Veld label="Gemeente">
-          <input value={gemeente} onChange={(e) => setGemeente(e.target.value)} style={inputStyle} />
-        </Veld>
+          <Veld label="Gemeente">
+            <input value={gemeente} onChange={(e) => setGemeente(e.target.value)} style={inputStyle} />
+          </Veld>
 
-        <Veld label="Algemeen contactadres" hint='Publiek zichtbaar op "over de groep" -- niet het e-mailadres van de sitebeheerder zelf.'>
-          <input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} style={inputStyle} />
-        </Veld>
+          <Veld label="Algemeen contactadres" hint='Publiek zichtbaar op "over de groep" -- niet het e-mailadres van de sitebeheerder zelf.'>
+            <input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} style={inputStyle} />
+          </Veld>
 
-        <Veld label="Oprichtingsjaar" hint="Bepaalt het startjaar van de tijdlijn als er geen eigen kentekens/mijlpalen vanaf een vroeger jaar zijn.">
-          <input type="number" value={oprichtingsjaar} onChange={(e) => setOprichtingsjaar(e.target.value)} style={inputStyle} />
-        </Veld>
+          <Veld label="Oprichtingsjaar" hint="Bepaalt het startjaar van de tijdlijn als er geen eigen kentekens/mijlpalen vanaf een vroeger jaar zijn.">
+            <input type="number" value={oprichtingsjaar} onChange={(e) => setOprichtingsjaar(e.target.value)} style={inputStyle} />
+          </Veld>
 
-        <Veld label="Organisatie" hint="Koppelt deze groep aan een scoutsbeweging voor gedeelde jaarkentekens en scouting-brede mijlpalen op de tijdlijn.">
-          <select value={organisatieId} onChange={(e) => setOrganisatieId(e.target.value)} style={inputStyle}>
-            <option value="">— geen organisatie —</option>
-            {organisaties.map((org) => (
-              <option key={org.id} value={org.id}>
-                {org.naam}
-              </option>
-            ))}
-          </select>
-        </Veld>
+          <Veld label="Organisatie" hint="Koppelt deze groep aan een scoutsbeweging voor gedeelde jaarkentekens en scouting-brede mijlpalen op de tijdlijn.">
+            <select value={organisatieId} onChange={(e) => setOrganisatieId(e.target.value)} style={inputStyle}>
+              <option value="">— geen organisatie —</option>
+              {organisaties.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.naam}
+                </option>
+              ))}
+            </select>
+          </Veld>
+        </div>
 
-        <Veld label="Das" hint="Bv. bij Scouts en Gidsen Vlaanderen heeft elke groep een das in 2 kleuren -- te zien naast de groepsnaam op de publieke site, links en rechts van de naam.">
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 14, color: colors.ink, cursor: "pointer" }}>
-            <input type="checkbox" checked={toonDas} onChange={(e) => setToonDas(e.target.checked)} />
-            Toon een das in de kleuren van de groep
-          </label>
-          {toonDas && (
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 10, flexWrap: "wrap" }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>
-                  Kleur 1
-                  <input type="color" value={dasKleur1} onChange={(e) => setDasKleur1(e.target.value)} style={kleurInputStyle} />
-                </label>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>
-                  Kleur 2
-                  <input type="color" value={dasKleur2} onChange={(e) => setDasKleur2(e.target.value)} style={kleurInputStyle} />
-                </label>
-                <DasIcon kleur1={dasKleur1} kleur2={dasKleur2} maat={44} />
-              </div>
-
-              <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.ink, cursor: "pointer", marginTop: 16 }}>
-                <input type="checkbox" checked={toonDas2} onChange={(e) => setToonDas2(e.target.checked)} />
-                Groep had een andere das doorheen de jaren -- toon een 2de das aan de andere kant van de naam
-              </label>
-              {toonDas2 && (
+        <div style={{ background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "24px 26px", display: "flex", flexDirection: "column", gap: 16 }}>
+          <Veld label="Das" hint="Bv. bij Scouts en Gidsen Vlaanderen heeft elke groep een das in 2 kleuren -- te zien naast de groepsnaam op de publieke site, links en rechts van de naam.">
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 14, color: colors.ink, cursor: "pointer" }}>
+              <input type="checkbox" checked={toonDas} onChange={(e) => setToonDas(e.target.checked)} />
+              Toon een das in de kleuren van de groep
+            </label>
+            {toonDas && (
+              <>
                 <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 10, flexWrap: "wrap" }}>
                   <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>
                     Kleur 1
-                    <input type="color" value={das2Kleur1} onChange={(e) => setDas2Kleur1(e.target.value)} style={kleurInputStyle} />
+                    <input type="color" value={dasKleur1} onChange={(e) => setDasKleur1(e.target.value)} style={kleurInputStyle} />
                   </label>
                   <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>
                     Kleur 2
-                    <input type="color" value={das2Kleur2} onChange={(e) => setDas2Kleur2(e.target.value)} style={kleurInputStyle} />
+                    <input type="color" value={dasKleur2} onChange={(e) => setDasKleur2(e.target.value)} style={kleurInputStyle} />
                   </label>
-                  <DasIcon kleur1={das2Kleur1} kleur2={das2Kleur2} maat={44} />
+                  <DasIcon kleur1={dasKleur1} kleur2={dasKleur2} maat={44} />
                 </div>
-              )}
-              {!toonDas2 && (
-                <p style={{ fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted, margin: "6px 0 0" }}>
-                  Zonder 2de das verschijnt de das hierboven aan beide kanten van de groepsnaam.
-                </p>
-              )}
-            </>
-          )}
-        </Veld>
 
-        <Veld
-          label="Feedback aan indieners"
-          hint={'Wanneer stuur je een mail naar wie iets indiende, na goed-/afkeuring? "Nachtelijk" bundelt alles voor dezelfde persoon in 1 mail per nacht -- handig als er bv. veel foto\'s tegelijk goedgekeurd worden.'}
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {FEEDBACK_CATEGORIEËN.map((categorie) => (
-              <div key={categorie} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                <span style={{ fontFamily: fonts.body, fontSize: 13, color: colors.ink, textTransform: "capitalize" }}>{FEEDBACK_LABELS[categorie]}</span>
-                <select
-                  value={feedbackTiming[categorie]}
-                  onChange={(e) => setFeedbackTiming((prev) => ({ ...prev, [categorie]: e.target.value as FeedbackTiming }))}
-                  style={{ ...inputStyle, width: 190 }}
-                >
-                  <option value="onmiddellijk">Onmiddellijk</option>
-                  <option value="nachtelijk">Nachtelijk (gebundeld)</option>
-                </select>
-              </div>
-            ))}
-          </div>
-        </Veld>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.ink, cursor: "pointer", marginTop: 16 }}>
+                  <input type="checkbox" checked={toonDas2} onChange={(e) => setToonDas2(e.target.checked)} />
+                  Groep had een andere das doorheen de jaren -- toon een 2de das aan de andere kant van de naam
+                </label>
+                {toonDas2 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 10, flexWrap: "wrap" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>
+                      Kleur 1
+                      <input type="color" value={das2Kleur1} onChange={(e) => setDas2Kleur1(e.target.value)} style={kleurInputStyle} />
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted }}>
+                      Kleur 2
+                      <input type="color" value={das2Kleur2} onChange={(e) => setDas2Kleur2(e.target.value)} style={kleurInputStyle} />
+                    </label>
+                    <DasIcon kleur1={das2Kleur1} kleur2={das2Kleur2} maat={44} />
+                  </div>
+                )}
+                {!toonDas2 && (
+                  <p style={{ fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted, margin: "6px 0 0" }}>
+                    Zonder 2de das verschijnt de das hierboven aan beide kanten van de groepsnaam.
+                  </p>
+                )}
+              </>
+            )}
+          </Veld>
+        </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button
