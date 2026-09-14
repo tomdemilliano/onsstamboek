@@ -87,6 +87,7 @@ export default function EntryVeldenEditor({
 export function opgeschoond(fields: EntryVelden): EntryVelden {
   return {
     ...fields,
+    naam: fields.naam.trim().replace(/\s+/g, " "),
     leuksteActiviteit: fields.leuksteActiviteit.map((v) => v.trim()).filter(Boolean),
     besteKampplaats: fields.besteKampplaats.map((v) => v.trim()).filter(Boolean),
     lekkersteEten: fields.lekkersteEten.map((v) => v.trim()).filter(Boolean),

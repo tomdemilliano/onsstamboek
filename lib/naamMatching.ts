@@ -69,3 +69,15 @@ export function splitsNamen(invoer: string): string[] {
     .map((n) => n.trim())
     .filter(Boolean);
 }
+
+/**
+ * Geeft de naam van een getagd lid (foto- of leidingsploeg-tag) weer.
+ * `naam` op de tag zelf is een kopie van het moment van taggen, die
+ * verouderd raakt zodra de fiche nadien hernoemd wordt -- dus wanneer de
+ * tag gekoppeld is aan een fiche (`entryId`), heeft de actuele naam uit
+ * `namen` (zie EntryFactory.getNamenMap) altijd voorrang. De bevroren
+ * `naam` blijft enkel de fallback voor een (zeldzame) tag zonder koppeling.
+ */
+export function weergaveNaam(tag: { naam: string; entryId?: string | null }, namen: Map<string, string>): string {
+  return (tag.entryId && namen.get(tag.entryId)) || tag.naam;
+}

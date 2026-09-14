@@ -15,6 +15,8 @@ import {
 } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import { parsePeriodRange, werkingsjaarLabel } from "@/lib/tijdlijnUtils";
+import { weergaveNaam } from "@/lib/naamMatching";
+import { useNamenMap } from "@/lib/useNamenMap";
 import MemberTagPicker from "@/components/MemberTagPicker";
 import type {
   Entry,
@@ -43,6 +45,7 @@ export default function TijdlijnPage() {
   const groep = useGroep();
   const basis = `/${groep.slug}`;
   const searchParams = useSearchParams();
+  const namen = useNamenMap(groep.id);
 
   // Bij voorkeur het oprichtingsjaar van de groep (instellingen); zonder dat
   // ingevuld nemen we een redelijk venster van de laatste 20 jaar.
@@ -523,7 +526,7 @@ export default function TijdlijnPage() {
                     {(geselecteerdeLeidingItem?.leden || []).length > 0 ? (
                       geselecteerdeLeidingItem!.leden.map((lid, i) => (
                         <span key={i} style={{ fontFamily: fonts.display, fontSize: 14, fontWeight: 600, color: colors.ink, background: colors.white, border: `1px solid ${colors.line}`, borderRadius: radius.badge, padding: "4px 12px" }}>
-                          {lid.naam}
+                          {weergaveNaam(lid, namen)}
                         </span>
                       ))
                     ) : (

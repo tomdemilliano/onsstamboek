@@ -527,6 +527,12 @@ export const EntryFactory = {
     return docsToArray<Entry>(snap.docs);
   },
 
+  /** id -> huidige naam, voor het live opzoeken van getagde namen in foto's/leidingsploegen (zie lib/naamMatching.ts:weergaveNaam). */
+  async getNamenMap(groepId: string): Promise<Map<string, string>> {
+    const leden = await this.getSearchable(groepId);
+    return new Map(leden.map((lid) => [lid.id, lid.naam]));
+  },
+
   async getStubs(groepId: string): Promise<WithId<Entry>[]> {
     const q = query(collection(db, ENTRIES), where("groepId", "==", groepId), where("status", "==", "stub"));
     const snap = await getDocs(q);

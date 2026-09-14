@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { EntryFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
-import { splitsNamen, vindGelijkaardigeNamen } from "@/lib/naamMatching";
+import { splitsNamen, vindGelijkaardigeNamen, weergaveNaam } from "@/lib/naamMatching";
 import type { Entry, LidLeidingsploeg, WithId } from "@/types/models";
 
 /**
@@ -41,6 +41,7 @@ export default function MemberTagPicker({
     EntryFactory.getSearchable(groepId).then(setAlleLeden);
   }, [groepId]);
 
+  const namen = useMemo(() => new Map(alleLeden.map((lid) => [lid.id, lid.naam])), [alleLeden]);
   const tags = value || [];
 
   const suggesties = zoekterm.trim()
@@ -159,11 +160,11 @@ export default function MemberTagPicker({
               color: colors.ink,
             }}
           >
-            {tag.naam}
+            {weergaveNaam(tag, namen)}
             <button
               type="button"
               onClick={() => verwijder(i)}
-              aria-label={`${tag.naam} verwijderen`}
+              aria-label={`${weergaveNaam(tag, namen)} verwijderen`}
               style={{ background: "none", border: "none", color: colors.stamp, cursor: "pointer", fontSize: 12, padding: 0 }}
             >
               ✕
