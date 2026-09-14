@@ -124,6 +124,14 @@ export default function FotosBeheerPage() {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   {foto.verwijderReden && <div style={{ fontFamily: fonts.body, fontSize: 12, color: colors.ink }}>&quot;{foto.verwijderReden}&quot;</div>}
+                  {foto.verwijderEmail && (
+                    <div style={{ fontFamily: fonts.body, fontSize: 11, color: colors.inkMuted }}>
+                      Aangevraagd door:{" "}
+                      <a href={`mailto:${foto.verwijderEmail}`} style={{ color: colors.forest, fontWeight: 600 }}>
+                        {foto.verwijderEmail}
+                      </a>
+                    </div>
+                  )}
                 </div>
                 <button onClick={() => handleVerwijderen(foto)} style={smallBtn(colors.stamp)}>
                   Verwijderen

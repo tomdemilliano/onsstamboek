@@ -412,7 +412,8 @@ service cloud.firestore {
         && (!('ledenTags' in request.resource.data) || (request.resource.data.ledenTags is list && request.resource.data.ledenTags.size() < 30))
         && (!('taggedEntryIds' in request.resource.data) || (request.resource.data.taggedEntryIds is list && request.resource.data.taggedEntryIds.size() < 30))
         && (!('tagIds' in request.resource.data) || (request.resource.data.tagIds is list && request.resource.data.tagIds.size() < 20))
-        && (!('verwijderReden' in request.resource.data) || (request.resource.data.verwijderReden is string && request.resource.data.verwijderReden.size() < 300));
+        && (!('verwijderReden' in request.resource.data) || (request.resource.data.verwijderReden is string && request.resource.data.verwijderReden.size() < 300))
+        && (!('verwijderEmail' in request.resource.data) || (request.resource.data.verwijderEmail is string && request.resource.data.verwijderEmail.size() < 200));
     }
   }
 }
