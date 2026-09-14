@@ -241,6 +241,22 @@ async function main() {
   await test("beheerder A verplaatst eigen foto niet stiekem naar groep B", () =>
     assertFails(updateDoc(doc(a, "photos", "photoA-published"), { groepId: GROEP_B }))
   );
+  await test("anoniem vraagt verwijdering aan van een gepubliceerde foto (met reden + e-mailadres)", () =>
+    assertSucceeds(
+      updateDoc(doc(anon, "photos", "photoA-published"), {
+        status: "published", afbeeldingUrl: "https://x/a.jpg", afbeeldingPath: `groepen/${GROEP_A}/fotos/a.jpg`, contactEmail: "", createdAt: 1,
+        verwijderVerzoek: true, verwijderReden: "staat er dubbel op", verwijderEmail: "bezoeker@voorbeeld.be",
+      })
+    )
+  );
+  await test("anoniem kan GEEN extreem lang verwijder-e-mailadres wegschrijven", () =>
+    assertFails(
+      updateDoc(doc(anon, "photos", "photoA-published"), {
+        status: "published", afbeeldingUrl: "https://x/a.jpg", afbeeldingPath: `groepen/${GROEP_A}/fotos/a.jpg`, contactEmail: "", createdAt: 1,
+        verwijderVerzoek: true, verwijderEmail: "x".repeat(201),
+      })
+    )
+  );
 
   console.log("\n== locations (kampplaatsen uit vriendenboekjes) ==");
   await test("iedereen leest locaties (publieke kaart)", () => assertSucceeds(getDoc(doc(anon, "locations", "locA"))));

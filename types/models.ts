@@ -156,6 +156,8 @@ export interface Photo {
   status: PhotoStatus;
   verwijderVerzoek?: boolean;
   verwijderReden?: string;
+  /** E-mailadres van wie de verwijdering aanvraagt -- enkel zichtbaar voor de beheerder, zodat die feedback kan geven over de beslissing. */
+  verwijderEmail?: string;
   createdAt?: Timestamp;
 }
 

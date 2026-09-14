@@ -1184,12 +1184,12 @@ export const PhotoFactory = {
     );
   },
 
-  async requestDelete(id: string, reden?: string): Promise<void> {
-    await updateDoc(doc(db, PHOTOS, id), { verwijderVerzoek: true, verwijderReden: reden || "" });
+  async requestDelete(id: string, reden: string, email: string): Promise<void> {
+    await updateDoc(doc(db, PHOTOS, id), { verwijderVerzoek: true, verwijderReden: reden || "", verwijderEmail: email });
   },
 
   async cancelDeleteRequest(id: string): Promise<void> {
-    await updateDoc(doc(db, PHOTOS, id), { verwijderVerzoek: false, verwijderReden: "" });
+    await updateDoc(doc(db, PHOTOS, id), { verwijderVerzoek: false, verwijderReden: "", verwijderEmail: "" });
   },
 
   async approve(id: string): Promise<void> {

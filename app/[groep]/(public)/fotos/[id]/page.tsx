@@ -37,6 +37,8 @@ export default function FotoDetailPage(props: PageProps<"/[groep]/fotos/[id]">) 
   const [roterenBezig, setRoterenBezig] = useState(false);
 
   const [verwijderReden, setVerwijderReden] = useState("");
+  const [verwijderEmail, setVerwijderEmail] = useState("");
+  const [verwijderFout, setVerwijderFout] = useState<string | null>(null);
   const [verwijderBezig, setVerwijderBezig] = useState(false);
   const [verwijderVerzonden, setVerwijderVerzonden] = useState(false);
 
@@ -158,9 +160,14 @@ export default function FotoDetailPage(props: PageProps<"/[groep]/fotos/[id]">) 
   }
 
   async function vraagVerwijdering() {
+    setVerwijderFout(null);
+    if (!verwijderEmail.trim() || !verwijderEmail.includes("@")) {
+      setVerwijderFout("Vul een geldig e-mailadres in.");
+      return;
+    }
     setVerwijderBezig(true);
     try {
-      await PhotoFactory.requestDelete(id, verwijderReden.trim());
+      await PhotoFactory.requestDelete(id, verwijderReden.trim(), verwijderEmail.trim());
       setVerwijderVerzonden(true);
       await ActivityFactory.log(groep.id, {
         type: "foto",
@@ -340,6 +347,13 @@ export default function FotoDetailPage(props: PageProps<"/[groep]/fotos/[id]">) 
               <summary style={{ fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted, cursor: "pointer" }}>Hoort deze foto hier niet thuis? Vraag verwijdering aan</summary>
               <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
                 <textarea value={verwijderReden} onChange={(e) => setVerwijderReden(e.target.value)} placeholder="Reden (optioneel)" rows={2} style={{ ...inputStyle, resize: "vertical" }} />
+                <div>
+                  <input type="email" value={verwijderEmail} onChange={(e) => setVerwijderEmail(e.target.value)} placeholder="Je e-mailadres" style={inputStyle} />
+                  <p style={{ fontFamily: fonts.body, fontSize: 11, color: colors.inkMuted, margin: "4px 0 0" }}>
+                    Enkel zichtbaar voor de beheerder, om je feedback te kunnen geven over je verzoek — niet publiek.
+                  </p>
+                </div>
+                {verwijderFout && <div style={{ color: colors.stamp, fontFamily: fonts.body, fontSize: 13 }}>{verwijderFout}</div>}
                 <button
                   onClick={vraagVerwijdering}
                   disabled={verwijderBezig}
