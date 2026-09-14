@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useGroep } from "@/lib/groepContext";
 import { useSearchParams } from "next/navigation";
-import { PhotoFactory, PhotoTagFactory } from "@/lib/dbSchema";
+import { FeedbackFactory, PhotoFactory, PhotoTagFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import { rotateImageFile, decenniumLabel } from "@/lib/fotoUtils";
 import AdminSubNav from "@/components/AdminSubNav";
@@ -64,17 +64,28 @@ export default function FotosBeheerPage() {
 
   async function handleGoedkeuren(foto: WithId<Photo>) {
     await PhotoFactory.approve(foto.id);
+    await FeedbackFactory.stuur({ groepId: groep.id, categorie: "foto", actie: "goedgekeurd", ontvangerEmail: foto.contactEmail, referentie: fotoReferentie(foto) });
     load();
   }
 
   async function handleVerwijderen(foto: WithId<Photo>) {
     if (!confirm("Deze foto definitief verwijderen?")) return;
     await PhotoFactory.remove(foto.id, foto.afbeeldingPath);
+    // handleVerwijderen dient 2 knoppen: "Afwijzen" bij een nieuwe upload
+    // (nog pending) en "Verwijderen" bij een aanvaard verwijderverzoek --
+    // afhankelijk daarvan gaat de feedback naar de uploader of naar wie de
+    // verwijdering aanvroeg, met een andere actie.
+    if (foto.verwijderVerzoek) {
+      await FeedbackFactory.stuur({ groepId: groep.id, categorie: "foto", actie: "goedgekeurd", ontvangerEmail: foto.verwijderEmail, referentie: fotoReferentie(foto) });
+    } else {
+      await FeedbackFactory.stuur({ groepId: groep.id, categorie: "foto", actie: "afgewezen", ontvangerEmail: foto.contactEmail, referentie: fotoReferentie(foto) });
+    }
     load();
   }
 
   async function handleAnnuleerVerwijderverzoek(foto: WithId<Photo>) {
     await PhotoFactory.cancelDeleteRequest(foto.id);
+    await FeedbackFactory.stuur({ groepId: groep.id, categorie: "foto", actie: "afgewezen", ontvangerEmail: foto.verwijderEmail, referentie: fotoReferentie(foto) });
     load();
   }
 
@@ -193,6 +204,11 @@ export default function FotosBeheerPage() {
       {!loading && gepubliceerdAlles.length === 0 && <p style={{ fontFamily: fonts.body, color: colors.inkMuted }}>Nog geen foto&apos;s gepubliceerd.</p>}
     </div>
   );
+}
+
+/** Leesbare verwijzing naar een foto zonder eigen titel, voor gebruik in een feedbackmail. */
+function fotoReferentie(foto: Photo): string {
+  return foto.locatie || foto.beschrijving || (foto.jaar ? `foto uit ${foto.jaar}` : "foto");
 }
 
 function ThumbOfFout({ url, klein, vierkant = true }: { url: string; klein?: boolean; vierkant?: boolean }) {

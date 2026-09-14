@@ -4,10 +4,16 @@ import { useEffect, useState } from "react";
 import { useGroep } from "@/lib/groepContext";
 import { ContactFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
+import AdminSubNav from "@/components/AdminSubNav";
 import type { ContactBericht, WithId } from "@/types/models";
 
 export default function ContactBeheerPage() {
   const groep = useGroep();
+  const basis = `/${groep.slug}`;
+  const tabs = [
+    { href: `${basis}/beheer/contact`, label: "Contactberichten", exact: true },
+    { href: `${basis}/beheer/contact/mailhistoriek`, label: "Mailhistoriek" },
+  ];
 
   const [berichten, setBerichten] = useState<WithId<ContactBericht>[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +52,8 @@ export default function ContactBeheerPage() {
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: "32px 20px 80px" }}>
-      <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 20px" }}>Contactberichten</h1>
+      <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 20px" }}>Contact</h1>
+      <AdminSubNav tabs={tabs} />
 
       {loading && <p style={{ fontFamily: fonts.body, color: colors.inkMuted }}>Bezig met laden...</p>}
 

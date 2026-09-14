@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useGroep } from "@/lib/groepContext";
-import { ExtraLocationFactory } from "@/lib/dbSchema";
+import { ExtraLocationFactory, FeedbackFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import AdminSubNav from "@/components/AdminSubNav";
 import type { ExtraLocation, WithId } from "@/types/models";
@@ -62,11 +62,17 @@ export default function ExtraLocatiesPage() {
   async function handleVerwijderen(loc: WithId<ExtraLocation>) {
     if (!confirm(`"${loc.naam}" verwijderen?`)) return;
     await ExtraLocationFactory.remove(loc.id);
+    // Enkel "afgewezen" melden bij een nog openstaand voorstel -- het
+    // verwijderen van een al gepubliceerde kampplaats is gewone opkuis.
+    if (loc.status === "pending") {
+      await FeedbackFactory.stuur({ groepId: groep.id, categorie: "kampplaats", actie: "afgewezen", ontvangerEmail: loc.contactEmail, referentie: loc.naam });
+    }
     load();
   }
 
   async function handleGoedkeuren(loc: WithId<ExtraLocation>) {
     await ExtraLocationFactory.approve(loc.id);
+    await FeedbackFactory.stuur({ groepId: groep.id, categorie: "kampplaats", actie: "goedgekeurd", ontvangerEmail: loc.contactEmail, referentie: loc.naam });
     load();
   }
 
@@ -241,7 +247,10 @@ function LocatieForm({
     try {
       if (locatie) {
         await ExtraLocationFactory.update(locatie.id, { naam: naam.trim(), beschrijving: beschrijving.trim(), lat: latNum, lng: lngNum });
-        if (publicerenOok) await ExtraLocationFactory.approve(locatie.id);
+        if (publicerenOok) {
+          await ExtraLocationFactory.approve(locatie.id);
+          await FeedbackFactory.stuur({ groepId, categorie: "kampplaats", actie: "goedgekeurd", ontvangerEmail: locatie.contactEmail, referentie: naam.trim() });
+        }
       } else {
         await ExtraLocationFactory.createByAdmin(groepId, { naam: naam.trim(), beschrijving: beschrijving.trim(), lat: latNum, lng: lngNum });
         setNaam("");

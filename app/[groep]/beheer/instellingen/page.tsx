@@ -6,13 +6,16 @@ import { useGroep } from "@/lib/groepContext";
 import { GroepFactory, OrganisatieFactory, PhotoFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import { AVATAR_ASPECT_RATIO, LANDING_ASPECT_RATIO, type Kadrering, landingsafbeeldingStyle, normaliseerPositie } from "@/lib/landingsafbeelding";
+import { FEEDBACK_LABELS, bepaalFeedbackTiming } from "@/lib/feedbackMail";
 import DasIcon from "@/components/DasIcon";
-import type { Organisatie, Photo, WithId } from "@/types/models";
+import type { FeedbackCategorie, FeedbackTiming, Organisatie, Photo, WithId } from "@/types/models";
 
 const STANDAARD_DASKLEUR_1 = "#3E5B45";
 const STANDAARD_DASKLEUR_2 = "#F4B860";
 const STANDAARD_DAS2KLEUR_1 = "#8C3B2E";
 const STANDAARD_DAS2KLEUR_2 = "#FBF7EC";
+
+const FEEDBACK_CATEGORIEËN: FeedbackCategorie[] = ["fiche", "wijziging", "foto", "kampplaats", "mijlpaal", "leidingsploeg"];
 
 export default function GroepInstellingen() {
   const groep = useGroep();
@@ -30,6 +33,13 @@ export default function GroepInstellingen() {
   const [toonDas2, setToonDas2] = useState(Boolean(groep.das2Kleur1 && groep.das2Kleur2));
   const [das2Kleur1, setDas2Kleur1] = useState(groep.das2Kleur1 || STANDAARD_DAS2KLEUR_1);
   const [das2Kleur2, setDas2Kleur2] = useState(groep.das2Kleur2 || STANDAARD_DAS2KLEUR_2);
+  const [feedbackTiming, setFeedbackTiming] = useState<Record<FeedbackCategorie, FeedbackTiming>>(() => {
+    const result = {} as Record<FeedbackCategorie, FeedbackTiming>;
+    FEEDBACK_CATEGORIEËN.forEach((categorie) => {
+      result[categorie] = bepaalFeedbackTiming(groep.feedbackTiming, categorie);
+    });
+    return result;
+  });
   const [bezig, setBezig] = useState(false);
   const [opgeslagen, setOpgeslagen] = useState(false);
 
@@ -69,6 +79,7 @@ export default function GroepInstellingen() {
         dasKleur2: toonDas ? dasKleur2 : null,
         das2Kleur1: toonDas && toonDas2 ? das2Kleur1 : null,
         das2Kleur2: toonDas && toonDas2 ? das2Kleur2 : null,
+        feedbackTiming,
       });
       setOpgeslagen(true);
       router.refresh();
@@ -412,6 +423,27 @@ export default function GroepInstellingen() {
               )}
             </>
           )}
+        </Veld>
+
+        <Veld
+          label="Feedback aan indieners"
+          hint={'Wanneer stuur je een mail naar wie iets indiende, na goed-/afkeuring? "Nachtelijk" bundelt alles voor dezelfde persoon in 1 mail per nacht -- handig als er bv. veel foto\'s tegelijk goedgekeurd worden.'}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {FEEDBACK_CATEGORIEËN.map((categorie) => (
+              <div key={categorie} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                <span style={{ fontFamily: fonts.body, fontSize: 13, color: colors.ink, textTransform: "capitalize" }}>{FEEDBACK_LABELS[categorie]}</span>
+                <select
+                  value={feedbackTiming[categorie]}
+                  onChange={(e) => setFeedbackTiming((prev) => ({ ...prev, [categorie]: e.target.value as FeedbackTiming }))}
+                  style={{ ...inputStyle, width: 190 }}
+                >
+                  <option value="onmiddellijk">Onmiddellijk</option>
+                  <option value="nachtelijk">Nachtelijk (gebundeld)</option>
+                </select>
+              </div>
+            ))}
+          </div>
         </Veld>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

@@ -60,12 +60,16 @@ export default function TijdlijnPage() {
   const [geselecteerdeLeiding, setGeselecteerdeLeiding] = useState<{ takId: string; werkingsjaarStart: number } | null>(null);
   const [leidingBewerkModus, setLeidingBewerkModus] = useState(false);
   const [leidingBewerkLeden, setLeidingBewerkLeden] = useState<LidLeidingsploeg[]>([]);
+  const [leidingBewerkEmail, setLeidingBewerkEmail] = useState("");
   const [leidingOpslaanBezig, setLeidingOpslaanBezig] = useState(false);
+  const [leidingFout, setLeidingFout] = useState<string | null>(null);
   const [toevoegFormOpen, setToevoegFormOpen] = useState(false);
   const [nieuwTakId, setNieuwTakId] = useState("");
   const [nieuwJaar, setNieuwJaar] = useState(String(eindJaar));
   const [nieuwLeden, setNieuwLeden] = useState<LidLeidingsploeg[]>([]);
+  const [nieuwEmail, setNieuwEmail] = useState("");
   const [nieuwOpslaanBezig, setNieuwOpslaanBezig] = useState(false);
+  const [nieuwFout, setNieuwFout] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const totaalJaren = eindJaar - STARTJAAR + 1;
@@ -226,14 +230,20 @@ export default function TijdlijnPage() {
     if (!geselecteerdeLeiding) return;
     const item = leidingLijst.find((l) => l.takId === geselecteerdeLeiding.takId && l.werkingsjaarStart === geselecteerdeLeiding.werkingsjaarStart);
     setLeidingBewerkLeden(item?.leden || []);
+    setLeidingFout(null);
     setLeidingBewerkModus(true);
   }
 
   async function leidingOpslaan() {
     if (!geselecteerdeLeiding) return;
+    setLeidingFout(null);
+    if (!leidingBewerkEmail.trim() || !leidingBewerkEmail.includes("@")) {
+      setLeidingFout("Vul een geldig e-mailadres in.");
+      return;
+    }
     setLeidingOpslaanBezig(true);
     try {
-      await LeidingFactory.setPublic(groep.id, geselecteerdeLeiding.takId, geselecteerdeLeiding.werkingsjaarStart, leidingBewerkLeden);
+      await LeidingFactory.setPublic(groep.id, geselecteerdeLeiding.takId, geselecteerdeLeiding.werkingsjaarStart, leidingBewerkLeden, leidingBewerkEmail.trim());
       const takNaam = takken.find((t) => t.id === geselecteerdeLeiding.takId)?.naam || "(onbekende tak)";
       await ActivityFactory.log(groep.id, {
         type: "leiding",
@@ -249,11 +259,16 @@ export default function TijdlijnPage() {
   }
 
   async function nieuweLeidingOpslaan() {
+    setNieuwFout(null);
     const jaarNum = parseInt(nieuwJaar, 10);
     if (!nieuwTakId || !jaarNum) return;
+    if (!nieuwEmail.trim() || !nieuwEmail.includes("@")) {
+      setNieuwFout("Vul een geldig e-mailadres in.");
+      return;
+    }
     setNieuwOpslaanBezig(true);
     try {
-      await LeidingFactory.setPublic(groep.id, nieuwTakId, jaarNum, nieuwLeden);
+      await LeidingFactory.setPublic(groep.id, nieuwTakId, jaarNum, nieuwLeden, nieuwEmail.trim());
       const takNaam = takken.find((t) => t.id === nieuwTakId)?.naam || "(onbekende tak)";
       await ActivityFactory.log(groep.id, {
         type: "leiding",
@@ -263,6 +278,7 @@ export default function TijdlijnPage() {
       });
       await load();
       setNieuwLeden([]);
+      setNieuwEmail("");
       setToevoegFormOpen(false);
     } finally {
       setNieuwOpslaanBezig(false);
@@ -435,6 +451,12 @@ export default function TijdlijnPage() {
                     <label style={miniLabelStyle}>Leiding</label>
                     <MemberTagPicker groepId={groep.id} value={nieuwLeden} onChange={setNieuwLeden} />
                   </div>
+                  <div>
+                    <label style={miniLabelStyle}>Je e-mailadres</label>
+                    <input type="email" value={nieuwEmail} onChange={(e) => setNieuwEmail(e.target.value)} placeholder="jouw@email.be" style={inputStyle} />
+                    <p style={{ fontFamily: fonts.body, fontSize: 11, color: colors.inkMuted, margin: "4px 0 0" }}>Enkel zichtbaar voor de beheerder, voor eventuele vragen — niet publiek.</p>
+                  </div>
+                  {nieuwFout && <div style={{ color: colors.stamp, fontFamily: fonts.body, fontSize: 13 }}>{nieuwFout}</div>}
                   <button onClick={nieuweLeidingOpslaan} disabled={nieuwOpslaanBezig} style={{ alignSelf: "flex-start", padding: "8px 18px", borderRadius: radius.badge, border: "none", background: colors.forest, color: colors.white, fontFamily: fonts.body, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
                     {nieuwOpslaanBezig ? "Bezig..." : "Opslaan"}
                   </button>
@@ -515,6 +537,12 @@ export default function TijdlijnPage() {
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   <MemberTagPicker groepId={groep.id} value={leidingBewerkLeden} onChange={setLeidingBewerkLeden} />
+                  <div>
+                    <label style={miniLabelStyle}>Je e-mailadres</label>
+                    <input type="email" value={leidingBewerkEmail} onChange={(e) => setLeidingBewerkEmail(e.target.value)} placeholder="jouw@email.be" style={inputStyle} />
+                    <p style={{ fontFamily: fonts.body, fontSize: 11, color: colors.inkMuted, margin: "4px 0 0" }}>Enkel zichtbaar voor de beheerder, voor eventuele vragen — niet publiek.</p>
+                  </div>
+                  {leidingFout && <div style={{ color: colors.stamp, fontFamily: fonts.body, fontSize: 13 }}>{leidingFout}</div>}
                   <div style={{ display: "flex", gap: 8 }}>
                     <button onClick={leidingOpslaan} disabled={leidingOpslaanBezig} style={{ padding: "9px 20px", borderRadius: radius.badge, border: "none", background: leidingOpslaanBezig ? colors.inkMuted : colors.forest, color: colors.white, fontFamily: fonts.body, fontWeight: 600, fontSize: 13, cursor: leidingOpslaanBezig ? "default" : "pointer" }}>
                       {leidingOpslaanBezig ? "Bezig..." : "Opslaan"}

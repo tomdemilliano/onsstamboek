@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useGroep } from "@/lib/groepContext";
-import { GroepMijlpaalFactory } from "@/lib/dbSchema";
+import { FeedbackFactory, GroepMijlpaalFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import AdminSubNav from "@/components/AdminSubNav";
 import type { GroepMijlpaal, WithId } from "@/types/models";
@@ -81,12 +81,18 @@ export default function MijlpalenBeheerPage() {
 
   async function handleGoedkeuren(m: WithId<GroepMijlpaal>) {
     await GroepMijlpaalFactory.approve(m.id);
+    await FeedbackFactory.stuur({ groepId: groep.id, categorie: "mijlpaal", actie: "goedgekeurd", ontvangerEmail: m.contactEmail, referentie: `${m.jaar} — ${m.titel}` });
     load();
   }
 
   async function handleVerwijderen(m: WithId<GroepMijlpaal>) {
     if (!confirm(`Mijlpaal "${m.titel}" verwijderen?`)) return;
     await GroepMijlpaalFactory.remove(m.id, m.afbeeldingPath);
+    // Enkel "afgewezen" melden bij een nog openstaand voorstel -- het
+    // verwijderen van een al gepubliceerde mijlpaal is gewone opkuis.
+    if (m.status === "pending") {
+      await FeedbackFactory.stuur({ groepId: groep.id, categorie: "mijlpaal", actie: "afgewezen", ontvangerEmail: m.contactEmail, referentie: `${m.jaar} — ${m.titel}` });
+    }
     load();
   }
 

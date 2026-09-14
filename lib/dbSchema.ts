@@ -21,7 +21,7 @@ import {
   getDownloadURL,
   deleteObject,
 } from "firebase/storage";
-import { db, storage } from "./firebase";
+import { auth, db, storage } from "./firebase";
 import { VOORWAARDEN_VERSIE } from "./voorwaarden";
 import type {
   Groep,
@@ -45,6 +45,9 @@ import type {
   Activiteit,
   WijzigingsVoorstel,
   Statistiek,
+  FeedbackActie,
+  FeedbackCategorie,
+  VerzondenMail,
   WithId,
 } from "@/types/models";
 
@@ -459,6 +462,7 @@ export const EntryFactory = {
       leuksteActiviteit: data.leuksteActiviteit || [],
       besteKampplaats: data.besteKampplaats || [],
       lekkersteEten: data.lekkersteEten || [],
+      email: data.email || "",
       scanUrl: null,
       scanPath: null,
       status: "published",
@@ -576,6 +580,7 @@ export const EntryFactory = {
       leuksteActiviteit: formData.leuksteActiviteit || [],
       besteKampplaats: formData.besteKampplaats || [],
       lekkersteEten: formData.lekkersteEten || [],
+      email: formData.email || "",
       status: "draft",
       koppelingBevestigd: false,
       updatedAt: serverTimestamp(),
@@ -881,10 +886,10 @@ export const LeidingFactory = {
    * bevestigt via het tabblad Leidingsploegen -- zelfde patroon als
    * EntryFactory.createPublicSubmission.
    */
-  async setPublic(groepId: string, takId: string, werkingsjaarStart: number, leden: Leidingsploeg["leden"]): Promise<void> {
+  async setPublic(groepId: string, takId: string, werkingsjaarStart: number, leden: Leidingsploeg["leden"], email: string): Promise<void> {
     await setDoc(
       doc(db, LEIDING, leidingDocId(groepId, takId, werkingsjaarStart)),
-      { groepId, takId, werkingsjaarStart, leden: leden || [], goedgekeurd: false, updatedAt: serverTimestamp() },
+      { groepId, takId, werkingsjaarStart, leden: leden || [], email, goedgekeurd: false, updatedAt: serverTimestamp() },
       { merge: true }
     );
   },
@@ -1185,11 +1190,16 @@ export const PhotoFactory = {
   },
 
   async requestDelete(id: string, reden: string, email: string): Promise<void> {
-    await updateDoc(doc(db, PHOTOS, id), { verwijderVerzoek: true, verwijderReden: reden || "", verwijderEmail: email });
+    await updateDoc(doc(db, PHOTOS, id), {
+      verwijderVerzoek: true,
+      verwijderReden: reden || "",
+      verwijderEmail: email,
+      verwijderAangevraagdOp: serverTimestamp(),
+    });
   },
 
   async cancelDeleteRequest(id: string): Promise<void> {
-    await updateDoc(doc(db, PHOTOS, id), { verwijderVerzoek: false, verwijderReden: "", verwijderEmail: "" });
+    await updateDoc(doc(db, PHOTOS, id), { verwijderVerzoek: false, verwijderReden: "", verwijderEmail: "", verwijderAangevraagdOp: null });
   },
 
   async approve(id: string): Promise<void> {
@@ -1389,5 +1399,48 @@ export const WijzigingFactory = {
 
   async weigeren(id: string): Promise<void> {
     await deleteDoc(doc(db, WIJZIGINGEN, id));
+  },
+};
+
+/**
+ * Feedbackmail naar een indiener over de goed-/afkeuring van diens
+ * wijziging/toevoeging/verwijderverzoek (zie app/api/feedback, dat beslist
+ * of dit meteen verstuurd of gebundeld voor de nachtelijke job klaargezet
+ * wordt). Client code kent enkel deze ene aanroep, nooit de timing-logica
+ * zelf.
+ */
+export const FeedbackFactory = {
+  async stuur(params: {
+    groepId: string;
+    categorie: FeedbackCategorie;
+    actie: FeedbackActie;
+    ontvangerEmail?: string | null;
+    referentie: string;
+    itemId?: string;
+  }): Promise<void> {
+    if (!params.ontvangerEmail) return;
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) return;
+      await fetch("/api/feedback", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(params),
+      });
+    } catch (err) {
+      // Feedback mag de eigenlijke goed-/afkeuring nooit laten falen -- zelfde patroon als ActivityFactory.log.
+      console.error("Versturen van feedbackmail mislukt:", err);
+    }
+  },
+};
+
+const VERZONDEN_MAILS = "verzondenMails";
+
+export const VerzondenMailFactory = {
+  /** Mailhistoriek van een groep, nieuwste eerst -- enkel gevuld/geschreven door de Admin SDK (zie app/api/feedback, app/api/cron/dagelijkse-job). */
+  async getAll(groepId: string): Promise<WithId<VerzondenMail>[]> {
+    const q = query(collection(db, VERZONDEN_MAILS), where("groepId", "==", groepId), orderBy("createdAt", "desc"));
+    const snap = await getDocs(q);
+    return docsToArray<VerzondenMail>(snap.docs);
   },
 };
