@@ -1,13 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useGroep } from "@/lib/groepContext";
 import { MailContactFactory, MailCampagneFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
-import { naarRijkeHtml } from "@/lib/mailOpmaak";
 import AdminSubNav from "@/components/AdminSubNav";
+import MailRichEditor from "@/components/MailRichEditor";
 import type { MailContact, WithId } from "@/types/models";
+
+/** De editor levert altijd geldige HTML, ook leeg (bv. "<p></p>") -- dus telt de tekst zonder tags om te bepalen of er echt iets ingevuld is. */
+function heeftInhoud(html: string): boolean {
+  return html.replace(/<[^>]*>/g, "").trim().length > 0;
+}
 
 export default function MailingPage() {
   const groep = useGroep();
@@ -36,7 +41,6 @@ export default function MailingPage() {
   const [verzendBezig, setVerzendBezig] = useState(false);
   const [verzendFout, setVerzendFout] = useState<string | null>(null);
   const [verzendResultaat, setVerzendResultaat] = useState<{ aantalVerzonden: number; aantalMislukt: number } | null>(null);
-  const tekstvakRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     let actief = true;
@@ -72,40 +76,6 @@ export default function MailingPage() {
 
   function toggleContact(id: string) {
     setGeselecteerdeIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
-  }
-
-  function omzetten(voor: string, na: string) {
-    const el = tekstvakRef.current;
-    if (!el) return;
-    const start = el.selectionStart;
-    const eind = el.selectionEnd;
-    const selectie = inhoud.slice(start, eind) || "tekst";
-    const nieuw = inhoud.slice(0, start) + voor + selectie + na + inhoud.slice(eind);
-    setInhoud(nieuw);
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(start + voor.length, start + voor.length + selectie.length);
-    });
-  }
-
-  /** Voor koppen/genummerde lijsten: een voorvoegsel aan het BEGIN van de huidige regel toevoegen, i.p.v. de selectie te omwikkelen. */
-  function voegVoorRegelToe(prefix: string) {
-    const el = tekstvakRef.current;
-    if (!el) return;
-    const pos = el.selectionStart;
-    const regelStart = inhoud.lastIndexOf("\n", pos - 1) + 1;
-    const nieuw = inhoud.slice(0, regelStart) + prefix + inhoud.slice(regelStart);
-    setInhoud(nieuw);
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(pos + prefix.length, pos + prefix.length);
-    });
-  }
-
-  function voegLinkToe() {
-    const url = window.prompt("Naar welke link?", "https://");
-    if (!url) return;
-    omzetten("[", `](${url})`);
   }
 
   function velden() {
@@ -194,35 +164,8 @@ export default function MailingPage() {
 
           <label style={{ display: "block" }}>
             <span style={veldLabelStijl}>Inhoud</span>
-            <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
-              <button type="button" onClick={() => omzetten("**", "**")} style={werkbalkKnopStijl}>
-                <strong>V</strong>et
-              </button>
-              <button type="button" onClick={() => omzetten("*", "*")} style={werkbalkKnopStijl}>
-                <em>C</em>ursief
-              </button>
-              <button type="button" onClick={() => voegVoorRegelToe("## ")} style={werkbalkKnopStijl}>
-                Kop
-              </button>
-              <button type="button" onClick={() => voegVoorRegelToe("1. ")} style={werkbalkKnopStijl}>
-                1. Lijst
-              </button>
-              <button type="button" onClick={voegLinkToe} style={werkbalkKnopStijl}>
-                🔗 Link
-              </button>
-            </div>
-            <textarea ref={tekstvakRef} value={inhoud} onChange={(e) => setInhoud(e.target.value)} rows={10} style={{ ...inputStijl, resize: "vertical", fontFamily: "inherit" }} />
+            <MailRichEditor value={inhoud} onChange={setInhoud} />
           </label>
-
-          {inhoud.trim() && (
-            <div>
-              <span style={veldLabelStijl}>Voorbeeld</span>
-              <div
-                style={{ border: `1px solid ${colors.line}`, borderRadius: radius.input, padding: "12px 14px", background: colors.white, fontFamily: fonts.body, fontSize: 14, color: colors.ink }}
-                dangerouslySetInnerHTML={{ __html: naarRijkeHtml(inhoud) }}
-              />
-            </div>
-          )}
 
           <div>
             <span style={veldLabelStijl}>Doelgroep</span>
@@ -259,10 +202,10 @@ export default function MailingPage() {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <button type="button" onClick={testVersturen} disabled={testBezig || !onderwerp.trim() || !inhoud.trim()} style={knopStijl(colors.inkMuted, true)}>
+            <button type="button" onClick={testVersturen} disabled={testBezig || !onderwerp.trim() || !heeftInhoud(inhoud)} style={knopStijl(colors.inkMuted, true)}>
               {testBezig ? "Bezig..." : "Verstuur testmail naar mezelf"}
             </button>
-            <button type="button" onClick={bewaarConcept} disabled={conceptBezig || (!onderwerp.trim() && !inhoud.trim())} style={knopStijl(colors.inkMuted, true)}>
+            <button type="button" onClick={bewaarConcept} disabled={conceptBezig || (!onderwerp.trim() && !heeftInhoud(inhoud))} style={knopStijl(colors.inkMuted, true)}>
               {conceptBezig ? "Bezig..." : "Bewaar als concept"}
             </button>
             {(testMelding || conceptMelding) && <span style={{ fontFamily: fonts.body, fontSize: 13, color: colors.forest }}>{testMelding || conceptMelding}</span>}
@@ -272,7 +215,7 @@ export default function MailingPage() {
             <button
               type="button"
               onClick={() => setStap("nazicht")}
-              disabled={!onderwerp.trim() || !inhoud.trim() || aantalOntvangers === 0}
+              disabled={!onderwerp.trim() || !heeftInhoud(inhoud) || aantalOntvangers === 0}
               style={knopStijl(colors.forest)}
             >
               Volgende: nazicht
@@ -287,7 +230,7 @@ export default function MailingPage() {
           <span style={veldLabelStijl}>Inhoud</span>
           <div
             style={{ border: `1px solid ${colors.line}`, borderRadius: radius.input, padding: "12px 14px", background: colors.white, fontFamily: fonts.body, fontSize: 14, color: colors.ink }}
-            dangerouslySetInnerHTML={{ __html: naarRijkeHtml(inhoud) }}
+            dangerouslySetInnerHTML={{ __html: inhoud }}
           />
 
           <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted, margin: 0 }}>
@@ -332,17 +275,6 @@ const inputStijl: React.CSSProperties = {
   fontSize: 14,
   color: colors.ink,
   boxSizing: "border-box",
-};
-
-const werkbalkKnopStijl: React.CSSProperties = {
-  padding: "5px 10px",
-  borderRadius: radius.badge,
-  border: `1px solid ${colors.line}`,
-  background: colors.white,
-  fontFamily: fonts.body,
-  fontSize: 12,
-  color: colors.ink,
-  cursor: "pointer",
 };
 
 function knopStijl(kleur: string, outline?: boolean): React.CSSProperties {

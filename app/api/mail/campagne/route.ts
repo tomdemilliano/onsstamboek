@@ -3,7 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 import { verifieerGroepsbeheerder } from "@/lib/groepsbeheerderAuth";
 import { verstuurEmail } from "@/lib/resend";
-import { naarRijkeHtml } from "@/lib/mailOpmaak";
+import { saneerMailHtml } from "@/lib/mailSanitize";
 import { maakAfmeldToken } from "@/lib/afmeldToken";
 import type { Groep, MailContact } from "@/types/models";
 
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Groep bestaat niet." }, { status: 404 });
   }
   const groep = groepSnap.data() as Groep;
-  const html = naarRijkeHtml(inhoud);
+  const html = saneerMailHtml(inhoud);
   const replyTo = groep.contactEmail || undefined;
 
   if (test) {

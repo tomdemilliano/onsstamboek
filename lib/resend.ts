@@ -10,6 +10,23 @@ import "server-only";
  * Vereist `RESEND_API_KEY` (Resend-dashboard -> API Keys) en een
  * geverifieerd verzenddomein bij Resend (hier: onsstamboek.be).
  */
+
+const STANDAARD_AFZENDERNAAM = "Ons Stamboek";
+const STANDAARD_AFZENDER = `${STANDAARD_AFZENDERNAAM} <noreply@onsstamboek.be>`;
+
+/**
+ * `RESEND_FROM_EMAIL` mag zowel een kaal adres ("noreply@onsstamboek.be")
+ * als het volledige "Naam <adres>"-formaat bevatten. Een kaal adres krijgt
+ * hier alsnog de standaardnaam ervoor -- zonder naam toont een mailclient
+ * anders het adres zelf (dus "noreply") als afzender, wat niet de bedoeling
+ * is.
+ */
+function afzender(): string {
+  const ruw = process.env.RESEND_FROM_EMAIL;
+  if (!ruw) return STANDAARD_AFZENDER;
+  return ruw.includes("<") ? ruw : `${STANDAARD_AFZENDERNAAM} <${ruw}>`;
+}
+
 export async function verstuurEmail({
   to,
   subject,
@@ -29,7 +46,6 @@ export async function verstuurEmail({
   if (!apiKey) {
     throw new Error("RESEND_API_KEY ontbreekt -- e-mail kan niet verstuurd worden.");
   }
-  const van = process.env.RESEND_FROM_EMAIL || "Ons Stamboek <noreply@onsstamboek.be>";
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -37,7 +53,7 @@ export async function verstuurEmail({
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from: van, to, subject, html, ...(replyTo ? { reply_to: replyTo } : {}), ...(headers ? { headers } : {}) }),
+    body: JSON.stringify({ from: afzender(), to, subject, html, ...(replyTo ? { reply_to: replyTo } : {}), ...(headers ? { headers } : {}) }),
   });
 
   if (!res.ok) {
