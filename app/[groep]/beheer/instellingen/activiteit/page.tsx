@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useGroep } from "@/lib/groepContext";
 import { ActivityFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
+import AdminSubNav from "@/components/AdminSubNav";
 import type { Activiteit, ActiviteitType, WithId } from "@/types/models";
 
 const TYPE_ICOON: Record<ActiviteitType, string> = {
@@ -55,6 +56,11 @@ function createdAtSeconds(a: WithId<Activiteit>): number | undefined {
 export default function ActiviteitPage() {
   const groep = useGroep();
   const basis = `/${groep.slug}`;
+  const tabs = [
+    { href: `${basis}/beheer/instellingen`, label: "Groepsinstellingen" },
+    { href: `${basis}/beheer/instellingen/beheerder`, label: "Beheerder instellingen" },
+    { href: `${basis}/beheer/instellingen/activiteit`, label: "Activiteit", exact: true },
+  ];
 
   const [data, setData] = useState<WithId<Activiteit>[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,10 +143,11 @@ export default function ActiviteitPage() {
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: "32px 20px 80px" }}>
-      <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Activiteit van bezoekers</h1>
-      <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted, marginBottom: 24 }}>
+      <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Instellingen</h1>
+      <p style={{ fontFamily: fonts.body, fontSize: 14, color: colors.inkMuted, marginBottom: 20 }}>
         Alle wijzigingen die bezoekers zelf deden (foto&apos;s taggen/draaien, leidingsploegen invullen, nieuwe voorstellen...) — je eigen bewerkingen als beheerder worden hier niet in meegeteld.
       </p>
+      <AdminSubNav tabs={tabs} />
 
       {loading && <p style={{ fontFamily: fonts.body, color: colors.inkMuted }}>Bezig met laden...</p>}
 

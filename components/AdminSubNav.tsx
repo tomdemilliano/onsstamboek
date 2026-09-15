@@ -39,28 +39,33 @@ export default function AdminSubNav({ tabs }: { tabs: SubNavTab[] }) {
             }}
           >
             {tab.label}
-            {Boolean(tab.count) && (
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  minWidth: 18,
-                  height: 18,
-                  padding: "0 5px",
-                  borderRadius: 999,
-                  background: actief ? colors.white : colors.forest,
-                  color: actief ? colors.forest : colors.white,
-                  fontSize: 11,
-                  fontWeight: 700,
-                }}
-              >
-                {tab.count}
-              </span>
-            )}
+            {Boolean(tab.count) && <CountBadge count={tab.count!} inverse={actief} />}
           </Link>
         );
       })}
     </div>
+  );
+}
+
+/** Rond teller-badge-je, herbruikt door AdminSubNav (sub-tabs) en AdminSidebar (hoofdnavigatie). `inverse` wisselt voorgrond/achtergrond om zodat de badge leesbaar blijft op een actieve (donkere) link. */
+export function CountBadge({ count, inverse }: { count: number; inverse?: boolean }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minWidth: 18,
+        height: 18,
+        padding: "0 5px",
+        borderRadius: 999,
+        background: inverse ? colors.white : colors.forest,
+        color: inverse ? colors.forest : colors.white,
+        fontSize: 11,
+        fontWeight: 700,
+      }}
+    >
+      {count}
+    </span>
   );
 }

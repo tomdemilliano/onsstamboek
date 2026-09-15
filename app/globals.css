@@ -108,3 +108,37 @@ body {
     display: none;
   }
 }
+
+/* Responsive admin-navigatie (zie components/AdminSidebar.tsx): vaste
+   zijbalk vanaf een breder scherm, hamburger + off-canvas paneel eronder
+   -- zelfde 680px-breakpoint als de publieke navigatie hierboven. */
+.beheer-shell {
+  display: flex;
+  align-items: flex-start;
+}
+.beheer-sidebar-groot {
+  width: 220px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+.beheer-sidebar-klein {
+  display: none;
+}
+.beheer-content {
+  flex: 1;
+  min-width: 0;
+}
+@media (max-width: 680px) {
+  .beheer-sidebar-groot {
+    display: none;
+  }
+  .beheer-sidebar-klein {
+    display: block;
+  }
+  .beheer-shell {
+    display: block;
+  }
+}
