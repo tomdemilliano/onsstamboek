@@ -56,7 +56,20 @@ export default function BewerkFichePage(props: PageProps<"/[groep]/beheer/vriend
   async function opslaan() {
     setBezig(true);
     try {
-      await EntryFactory.update(id, { ...opgeschoond(fields), email: email.trim() });
+      const schoon = { ...opgeschoond(fields), email: email.trim() };
+      await EntryFactory.update(id, schoon);
+      if (schoon.email) {
+        try {
+          await fetch("/api/mail/contact-koppelen", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ groepId: groep.id, entryId: id, naam: schoon.naam, email: schoon.email }),
+          });
+        } catch (err) {
+          // Mag het opslaan van de fiche zelf nooit laten falen.
+          console.error("Koppelen van mailcontact mislukt:", err);
+        }
+      }
       router.push(`${basis}/beheer/vriendenboek`);
     } finally {
       setBezig(false);
@@ -116,6 +129,9 @@ export default function BewerkFichePage(props: PageProps<"/[groep]/beheer/vriend
             style={{ width: "100%", padding: "9px 12px", borderRadius: radius.input, border: `1px solid ${colors.line}`, background: colors.white, fontFamily: fonts.body, fontSize: 14, color: colors.ink, boxSizing: "border-box" }}
           />
         </label>
+        <p style={{ fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted, margin: 0 }}>
+          Komt na het opslaan ook terecht in het ontvangers-overzicht van de Mailing-module (zonder daar meteen op &quot;mag mailen&quot; te staan).
+        </p>
       </div>
 
       <button
