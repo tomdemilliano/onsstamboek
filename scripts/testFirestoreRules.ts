@@ -119,6 +119,10 @@ async function seed() {
 
     await setDoc(doc(db, "wijzigingsVoorstellen", "voorstelBestaandA"), { groepId: GROEP_A, entryId: "entryA-published", status: "pending", email: "x@x.be", naam: "Jan V." });
 
+    await setDoc(doc(db, "mailCampagnes", "campA"), { groepId: GROEP_A, onderwerp: "x", inhoud: "x", verzondenDoor: UID_A, aantalOntvangers: 1, aantalVerzonden: 1, aantalMislukt: 0 });
+    await setDoc(doc(db, "mailCampagnes", "campB"), { groepId: GROEP_B, onderwerp: "x", inhoud: "x", verzondenDoor: UID_B, aantalOntvangers: 1, aantalVerzonden: 1, aantalMislukt: 0 });
+    await setDoc(doc(db, "mailCampagnes", "campA", "ontvangers", "ontvA"), { groepId: GROEP_A, entryId: "entryA-published", email: "x@x.be", status: "verzonden" });
+
     await setDoc(doc(db, "organisaties", `${ORG_ID}/kentekens`, "k1"), { startJaar: 2020, jaarleuze: "x" });
     await setDoc(doc(db, "organisaties", `${ORG_ID}/mijlpalen`, "m1"), { status: "published", jaar: 2020, titel: "x" });
 
@@ -205,6 +209,22 @@ async function main() {
       addDoc(collection(anon, "entries"), {
         groepId: GROEP_A, status: "published", goedgekeurd: false, scanUrl: null, scanPath: null,
         naam: "Nieuwkomer", geboortejaar: "", totemnaam: "", periode: "", leuksteActiviteit: [], besteKampplaats: [], lekkersteEten: [],
+      })
+    )
+  );
+  await test("anoniem dient nieuwe fiche in met geldige magMailen-opt-in", () =>
+    assertSucceeds(
+      addDoc(collection(anon, "entries"), {
+        groepId: GROEP_A, status: "published", goedgekeurd: false, scanUrl: null, scanPath: null, magMailen: true,
+        naam: "Nieuwkomer2", geboortejaar: "", totemnaam: "", periode: "", leuksteActiviteit: [], besteKampplaats: [], lekkersteEten: [],
+      })
+    )
+  );
+  await test("anoniem dient GEEN fiche in met een ongeldig magMailen-type", () =>
+    assertFails(
+      addDoc(collection(anon, "entries"), {
+        groepId: GROEP_A, status: "published", goedgekeurd: false, scanUrl: null, scanPath: null, magMailen: "ja",
+        naam: "Nieuwkomer3", geboortejaar: "", totemnaam: "", periode: "", leuksteActiviteit: [], besteKampplaats: [], lekkersteEten: [],
       })
     )
   );
@@ -390,6 +410,21 @@ async function main() {
         groepId: GROEP_A, soort: "feedback", ontvanger: "x@x.be", onderwerp: "x", inhoud: "x", type: "onmiddellijk", categorieën: ["foto"], aantalItems: 1,
       })
     )
+  );
+
+  console.log("\n== mailCampagnes & ontvangers (Mailing-luik, enkel Admin SDK schrijft) ==");
+  await test("beheerder A leest eigen mailCampagne", () => assertSucceeds(getDoc(doc(a, "mailCampagnes", "campA"))));
+  await test("beheerder B leest mailCampagne van groep A NIET", () => assertFails(getDoc(doc(b, "mailCampagnes", "campA"))));
+  await test("systeembeheerder leest mailCampagne van om het even welke groep", () => assertSucceeds(getDoc(doc(sys, "mailCampagnes", "campB"))));
+  await test("anoniem leest mailCampagnes NIET", () => assertFails(getDoc(doc(anon, "mailCampagnes", "campA"))));
+  await test("beheerder A schrijft NIET rechtstreeks naar mailCampagnes (enkel Admin SDK)", () =>
+    assertFails(setDoc(doc(a, "mailCampagnes", "campNieuw"), { groepId: GROEP_A, onderwerp: "x", inhoud: "x", verzondenDoor: UID_A, aantalOntvangers: 0, aantalVerzonden: 0, aantalMislukt: 0 }))
+  );
+
+  await test("beheerder A leest ontvangers van eigen campagne", () => assertSucceeds(getDoc(doc(a, "mailCampagnes", "campA", "ontvangers", "ontvA"))));
+  await test("beheerder B leest ontvangers van campagne van groep A NIET", () => assertFails(getDoc(doc(b, "mailCampagnes", "campA", "ontvangers", "ontvA"))));
+  await test("beheerder A schrijft NIET rechtstreeks naar ontvangers (enkel Admin SDK)", () =>
+    assertFails(setDoc(doc(a, "mailCampagnes", "campA", "ontvangers", "ontvNieuw"), { groepId: GROEP_A, entryId: "entryA-published", email: "x@x.be", status: "verzonden" }))
   );
 
   console.log("\n== organisaties (systeembeheerder-only) ==");

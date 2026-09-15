@@ -20,6 +20,8 @@ export default function BewerkFichePage(props: PageProps<"/[groep]/beheer/vriend
 
   const [entry, setEntry] = useState<WithId<Entry> | null | undefined>(undefined);
   const [fields, setFields] = useState<EntryVelden>(LEGE_ENTRY_VELDEN);
+  const [email, setEmail] = useState("");
+  const [magMailen, setMagMailen] = useState(false);
   const [bezig, setBezig] = useState(false);
 
   useEffect(() => {
@@ -37,6 +39,8 @@ export default function BewerkFichePage(props: PageProps<"/[groep]/beheer/vriend
           besteKampplaats: e.besteKampplaats?.length ? e.besteKampplaats : [""],
           lekkersteEten: e.lekkersteEten?.length ? e.lekkersteEten : [""],
         });
+        setEmail(e.email || "");
+        setMagMailen(e.magMailen ?? false);
       }
     });
     return () => {
@@ -54,7 +58,7 @@ export default function BewerkFichePage(props: PageProps<"/[groep]/beheer/vriend
   async function opslaan() {
     setBezig(true);
     try {
-      await EntryFactory.update(id, opgeschoond(fields));
+      await EntryFactory.update(id, { ...opgeschoond(fields), email: email.trim(), magMailen });
       router.push(`${basis}/beheer/vriendenboek`);
     } finally {
       setBezig(false);
@@ -100,6 +104,25 @@ export default function BewerkFichePage(props: PageProps<"/[groep]/beheer/vriend
       </div>
 
       <EntryVeldenEditor fields={fields} onChange={setFields} />
+
+      <div style={{ background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "18px 20px", marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+        <span style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: colors.inkMuted }}>
+          Contact &amp; mailing (enkel zichtbaar voor beheerders)
+        </span>
+        <label style={{ display: "block" }}>
+          <span style={{ display: "block", fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted, marginBottom: 4 }}>E-mailadres</span>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={{ width: "100%", padding: "9px 12px", borderRadius: radius.input, border: `1px solid ${colors.line}`, background: colors.white, fontFamily: fonts.body, fontSize: 14, color: colors.ink, boxSizing: "border-box" }}
+          />
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.ink, cursor: "pointer" }}>
+          <input type="checkbox" checked={magMailen} onChange={(e) => setMagMailen(e.target.checked)} />
+          Mag gemaild worden over nieuws/activiteiten (Mailing-module)
+        </label>
+      </div>
 
       <button
         onClick={opslaan}
