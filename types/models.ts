@@ -132,16 +132,8 @@ export interface Entry {
   status: EntryStatus;
   goedgekeurd?: boolean;
   koppelingBevestigd?: boolean;
-  /** E-mailadres van dit lid -- blijvend beheerbaar door de groepsbeheerder op de fiche, en gebruikt voor feedback over goed-/afkeuring én (met `magMailen`) voor mailings. Nooit publiek zichtbaar. */
+  /** E-mailadres van wie de fiche indiende -- enkel zichtbaar voor de beheerder, voor feedback over goed-/afkeuring. */
   email?: string;
-  /**
-   * Toestemming om dit lid te mailen over nieuws/activiteiten van de
-   * groep (opt-in, standaard false/niet aangevinkt -- bewuste keuze
-   * vereist). Enkel relevant samen met een ingevuld `email`. Herinstelbaar
-   * via een nieuwe publieke indiening, door de beheerder op de fiche zelf,
-   * of via de afmeldlink onderaan elke mailing.
-   */
-  magMailen?: boolean;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -364,28 +356,62 @@ export interface VerzondenMail {
 }
 
 /**
- * Eén verzonden ledenmailing (het "Mailing"-luik in groepsbeheer) --
- * 1 onderwerp/inhoud naar mogelijk veel leden tegelijk, dus een aparte
- * vorm dan `VerzondenMail` (dat is 1 document per ontvanger). Enkel door
- * de Admin SDK geschreven/gelezen via `mailCampagnes/{id}/ontvangers`.
+ * Eén ledenmailing (het "Mailing"-luik in groepsbeheer) -- 1
+ * onderwerp/inhoud naar mogelijk veel leden tegelijk, dus een aparte
+ * vorm dan `VerzondenMail` (dat is 1 document per ontvanger). Kan een
+ * niet-verstuurd concept zijn (rechtstreeks door de beheerder
+ * aangemaakt/bewerkt) of een effectief verstuurde mailing (`status`
+ * wordt dan, samen met de tellers, enkel nog door de Admin SDK gezet --
+ * zie app/api/mail/campagne). Ontvangers zelf staan in de subcollectie
+ * `mailCampagnes/{id}/ontvangers`.
  */
 export interface MailCampagne {
   groepId: string;
   onderwerp: string;
   inhoud: string;
   verzondenDoor: string;
+  status: "concept" | "verzonden";
+  doelgroep: "alle" | "selectie";
+  /** Enkel gevuld/relevant bij doelgroep:"selectie" -- ids van mailContacten. */
+  contactIds?: string[];
   aantalOntvangers: number;
   aantalVerzonden: number;
   aantalMislukt: number;
   createdAt?: Timestamp;
 }
 
-/** Eén ontvanger van een `MailCampagne` -- audit-trail per lid, en de basis om later (indien nodig) zonder migratie een bounce-status toe te voegen. */
+/** Eén ontvanger van een `MailCampagne` -- audit-trail per contact, en de basis om later (indien nodig) zonder migratie een bounce-status toe te voegen. */
 export interface MailOntvanger {
   groepId: string;
-  entryId: string;
+  contactId: string;
+  /** Fiche waaraan het contact op het moment van verzenden gekoppeld was, indien van toepassing. */
+  entryId?: string | null;
   email: string;
   status: "verzonden" | "mislukt";
   foutmelding?: string | null;
   verzondenOp?: Timestamp | null;
+}
+
+/**
+ * Eén mailbaar contact van een groep -- losstaand van een
+ * vriendenboekje-fiche (`Entry`): een groepsbeheerder kan iemand
+ * toevoegen die geen fiche heeft, en een fiche kan achteraf aan een
+ * bestaand contact gekoppeld worden via hetzelfde e-mailadres (zie
+ * app/api/mail/contact-koppelen). Het document-ID is deterministisch
+ * (`${groepId}_${genormaliseerdEmail}`, zie lib/mailContact.ts) --
+ * zowel om duplicaten te voorkomen als om die koppeling zonder query
+ * te kunnen doen. `email` is daardoor na aanmaak niet meer wijzigbaar
+ * (dat zou een nieuw document vergen); enkel `naam`/`magMailen` zijn
+ * dat wel.
+ */
+export interface MailContact {
+  groepId: string;
+  naam: string;
+  email: string;
+  magMailen: boolean;
+  afgemeldOp?: Timestamp | null;
+  /** Eén contact <-> maximaal 1 fiche; twee fiches met hetzelfde adres (bv. broers/zussen via 1 ouderadres) delen dus 1 contact-record. Bewuste vereenvoudiging. */
+  entryId?: string | null;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
 }

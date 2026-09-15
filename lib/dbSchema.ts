@@ -23,6 +23,7 @@ import {
 } from "firebase/storage";
 import { auth, db, storage } from "./firebase";
 import { VOORWAARDEN_VERSIE } from "./voorwaarden";
+import { mailContactId } from "./mailContact";
 import type {
   Groep,
   Organisatie,
@@ -49,6 +50,7 @@ import type {
   FeedbackCategorie,
   VerzondenMail,
   MailCampagne,
+  MailContact,
   WithId,
 } from "@/types/models";
 
@@ -464,7 +466,6 @@ export const EntryFactory = {
       besteKampplaats: data.besteKampplaats || [],
       lekkersteEten: data.lekkersteEten || [],
       email: data.email || "",
-      magMailen: data.magMailen ?? false,
       scanUrl: null,
       scanPath: null,
       status: "published",
@@ -535,13 +536,6 @@ export const EntryFactory = {
     return new Map(leden.map((lid) => [lid.id, lid.naam]));
   },
 
-  /** Leden die effectief gemaild mogen worden (opt-in + ingevuld e-mailadres) -- gebruikt voor de live ontvangers-teller op de mailing-opstelpagina. De echte verzending herbevraagt dit zelf server-side (zie app/api/mail/campagne). */
-  async getMailbareLeden(groepId: string): Promise<WithId<Entry>[]> {
-    const q = query(collection(db, ENTRIES), where("groepId", "==", groepId), where("magMailen", "==", true));
-    const snap = await getDocs(q);
-    return docsToArray<Entry>(snap.docs).filter((entry) => Boolean(entry.email?.trim()));
-  },
-
   async getStubs(groepId: string): Promise<WithId<Entry>[]> {
     const q = query(collection(db, ENTRIES), where("groepId", "==", groepId), where("status", "==", "stub"));
     const snap = await getDocs(q);
@@ -596,7 +590,6 @@ export const EntryFactory = {
       besteKampplaats: formData.besteKampplaats || [],
       lekkersteEten: formData.lekkersteEten || [],
       email: formData.email || "",
-      magMailen: formData.magMailen ?? false,
       status: "draft",
       koppelingBevestigd: false,
       updatedAt: serverTimestamp(),
@@ -1464,26 +1457,69 @@ export const VerzondenMailFactory = {
 const MAIL_CAMPAGNES = "mailCampagnes";
 
 /**
- * Ledenmailings ("Mailing"-luik in groepsbeheer). In tegenstelling tot
- * FeedbackFactory.stuur (fire-and-forget) geven verstuurTest/verstuur hun
- * resultaat/fouten door -- dit is een actie die de beheerder zelf bewust
- * aftrapt en waarvan die meteen een uitkomst wil zien, niet een stille
- * achtergrondmelding.
+ * Ledenmailings ("Mailing"-luik in groepsbeheer). Concepten worden
+ * rechtstreeks door de beheerder beheerd (client-writes, zie
+ * firestore.rules: enkel toegelaten zolang status:"concept" blijft).
+ * Het effectief versturen (en de overgang naar status:"verzonden")
+ * loopt via de Admin SDK (app/api/mail/campagne) -- verstuurTest/
+ * verstuur geven, in tegenstelling tot FeedbackFactory.stuur
+ * (fire-and-forget), hun resultaat/fouten door: dit is een actie die de
+ * beheerder zelf bewust aftrapt en waarvan die meteen een uitkomst wil
+ * zien, niet een stille achtergrondmelding.
  */
 export const MailCampagneFactory = {
-  /** Geschiedenis van een groep, nieuwste eerst -- enkel gevuld/geschreven door de Admin SDK (zie app/api/mail/campagne). */
+  /** Geschiedenis van een groep, nieuwste eerst -- zowel concepten als verzonden mailings. */
   async getAll(groepId: string): Promise<WithId<MailCampagne>[]> {
     const q = query(collection(db, MAIL_CAMPAGNES), where("groepId", "==", groepId), orderBy("createdAt", "desc"));
     const snap = await getDocs(q);
     return docsToArray<MailCampagne>(snap.docs);
   },
 
+  async getConcept(id: string): Promise<WithId<MailCampagne> | null> {
+    const snap = await getDoc(doc(db, MAIL_CAMPAGNES, id));
+    return snap.exists() ? ({ id: snap.id, ...(snap.data() as MailCampagne) }) : null;
+  },
+
+  /** Slaat een concept op (nieuw, of bijgewerkt als `campagneId` al bestaat) -- rechtstreekse client-write, geeft het (eventueel nieuwe) document-ID terug. */
+  async bewaarConcept(
+    groepId: string,
+    velden: { onderwerp: string; inhoud: string; doelgroep: "alle" | "selectie"; contactIds?: string[] },
+    campagneId?: string
+  ): Promise<string> {
+    const ref = campagneId ? doc(db, MAIL_CAMPAGNES, campagneId) : doc(collection(db, MAIL_CAMPAGNES));
+    await setDoc(
+      ref,
+      {
+        groepId,
+        onderwerp: velden.onderwerp,
+        inhoud: velden.inhoud,
+        doelgroep: velden.doelgroep,
+        contactIds: velden.contactIds || [],
+        status: "concept",
+        verzondenDoor: auth.currentUser?.uid || "",
+        aantalOntvangers: 0,
+        aantalVerzonden: 0,
+        aantalMislukt: 0,
+        createdAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+    return ref.id;
+  },
+
+  async verwijderConcept(id: string): Promise<void> {
+    await deleteDoc(doc(db, MAIL_CAMPAGNES, id));
+  },
+
   async verstuurTest(groepId: string, onderwerp: string, inhoud: string): Promise<void> {
     await this.roepAan(groepId, { test: true, onderwerp, inhoud });
   },
 
-  async verstuur(groepId: string, onderwerp: string, inhoud: string): Promise<{ aantalOntvangers: number; aantalVerzonden: number; aantalMislukt: number }> {
-    return this.roepAan(groepId, { onderwerp, inhoud });
+  async verstuur(
+    groepId: string,
+    velden: { onderwerp: string; inhoud: string; doelgroep: "alle" | "selectie"; contactIds?: string[]; campagneId?: string }
+  ): Promise<{ aantalOntvangers: number; aantalVerzonden: number; aantalMislukt: number }> {
+    return this.roepAan(groepId, velden);
   },
 
   async roepAan(groepId: string, body: Record<string, unknown>) {
@@ -1499,6 +1535,51 @@ export const MailCampagneFactory = {
       throw new Error(tekst || `Versturen mislukt (${res.status})`);
     }
     return res.json();
+  },
+};
+
+const MAIL_CONTACTEN = "mailContacten";
+
+/**
+ * Mailbare contacten van een groep -- losstaand van een fiche (`Entry`).
+ * Document-ID is deterministisch (zie lib/mailContact.ts:mailContactId),
+ * dus `upsert` doet zowel aanmaken als bijwerken; `email` hoort daarom
+ * enkel bij het aanmaken meegegeven te worden (nooit bij het bewerken
+ * van een bestaand contact, dat zou een ander document raken).
+ */
+export const MailContactFactory = {
+  async getAll(groepId: string): Promise<WithId<MailContact>[]> {
+    const q = query(collection(db, MAIL_CONTACTEN), where("groepId", "==", groepId), orderBy("naam", "asc"));
+    const snap = await getDocs(q);
+    return docsToArray<MailContact>(snap.docs);
+  },
+
+  async bestaat(groepId: string, email: string): Promise<boolean> {
+    const snap = await getDoc(doc(db, MAIL_CONTACTEN, mailContactId(groepId, email)));
+    return snap.exists();
+  },
+
+  /** Enkel voor het aanmaken van een nieuw contact (zonder fiche). */
+  async maak(groepId: string, naam: string, email: string, magMailen: boolean): Promise<void> {
+    await setDoc(doc(db, MAIL_CONTACTEN, mailContactId(groepId, email)), {
+      groepId,
+      naam,
+      email: email.trim().toLowerCase(),
+      magMailen,
+      entryId: null,
+      afgemeldOp: null,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  },
+
+  /** Enkel naam/magMailen van een bestaand contact bijwerken -- nooit het e-mailadres (dat is het document-ID). */
+  async bewerk(id: string, data: { naam?: string; magMailen?: boolean }): Promise<void> {
+    await updateDoc(doc(db, MAIL_CONTACTEN, id), { ...data, updatedAt: serverTimestamp() });
+  },
+
+  async verwijder(id: string): Promise<void> {
+    await deleteDoc(doc(db, MAIL_CONTACTEN, id));
   },
 };
 

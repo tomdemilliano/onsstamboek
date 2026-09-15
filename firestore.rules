@@ -146,8 +146,7 @@ service cloud.firestore {
         && request.resource.data.leuksteActiviteit.size() < 500
         && request.resource.data.besteKampplaats.size() < 10
         && request.resource.data.lekkersteEten.size() < 10
-        && (!('email' in request.resource.data) || (request.resource.data.email is string && request.resource.data.email.size() < 200))
-        && (!('magMailen' in request.resource.data) || request.resource.data.magMailen is bool);
+        && (!('email' in request.resource.data) || (request.resource.data.email is string && request.resource.data.email.size() < 200));
 
       // "Stub"-oudlid: automatisch aangemaakt bij het taggen van een naam
       // zonder eigen fiche.
@@ -178,8 +177,7 @@ service cloud.firestore {
         && request.resource.data.leuksteActiviteit.size() < 500
         && request.resource.data.besteKampplaats.size() < 10
         && request.resource.data.lekkersteEten.size() < 10
-        && (!('email' in request.resource.data) || (request.resource.data.email is string && request.resource.data.email.size() < 200))
-        && (!('magMailen' in request.resource.data) || request.resource.data.magMailen is bool);
+        && (!('email' in request.resource.data) || (request.resource.data.email is string && request.resource.data.email.size() < 200));
     }
 
     // -----------------------------------------------------------------
@@ -442,18 +440,37 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Ledenmailings (het "Mailing"-luik in groepsbeheer) -- zelfde
-    // aanpak: enkel de Admin SDK schrijft (zie app/api/mail/campagne).
-    // `ontvangers` dupliceert `groepId` zodat deze regel het rechtstreeks
+    // Ledenmailings (het "Mailing"-luik in groepsbeheer). Concepten
+    // worden rechtstreeks door de beheerder beheerd; de overgang naar
+    // status:"verzonden" (en de tellers) gebeurt uitsluitend via de
+    // Admin SDK (app/api/mail/campagne) -- de regels hieronder laten dat
+    // nergens toe voor een client, ook niet de eigen beheerder.
+    // `ontvangers` dupliceert `groepId` zodat die regel het rechtstreeks
     // kan checken, zonder een lookup naar het campagne-document.
     match /mailCampagnes/{id} {
       allow read: if isBeheerderVan(resource.data.groepId);
-      allow write: if false;
+      allow create: if isBeheerderVan(request.resource.data.groepId) && request.resource.data.status == 'concept';
+      allow update: if isBeheerderVan(resource.data.groepId) && groepIdOngewijzigd()
+        && resource.data.status == 'concept' && request.resource.data.status == 'concept';
+      allow delete: if isBeheerderVan(resource.data.groepId) && resource.data.status == 'concept';
 
       match /ontvangers/{ontvangerId} {
         allow read: if isBeheerderVan(resource.data.groepId);
         allow write: if false;
       }
+    }
+
+    // Mailbare contacten van een groep, los van een fiche -- beheerbaar
+    // door de groepsbeheerder zelf (naar hetzelfde patroon als bv.
+    // entries). Het koppelen vanuit een publieke fiche-indiening
+    // (app/api/mail/contact-koppelen) en het afmelden (app/api/afmelden)
+    // lopen bewust via de Admin SDK, dus geen publieke create/update
+    // hier: een anonieme client mag nooit rechtstreeks een bestaand
+    // contact van iemand anders kunnen ombuigen.
+    match /mailContacten/{id} {
+      allow read, delete: if isBeheerderVan(resource.data.groepId);
+      allow update: if isBeheerderVan(resource.data.groepId) && groepIdOngewijzigd();
+      allow create: if isBeheerderVan(request.resource.data.groepId);
     }
   }
 }
