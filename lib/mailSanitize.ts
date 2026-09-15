@@ -8,11 +8,11 @@ import sanitizeHtml from "sanitize-html";
  * de editor-UI om -- dus wordt ze hier, vlak vóór ze in een e-mail
  * terechtkomt, tegen een allowlist gesaneerd. De toegelaten tags komen
  * overeen met wat de editor zelf kan produceren (StarterKit beperkt tot
- * vet/cursief/koppen(2-3)/lijsten/links).
+ * vet/cursief/onderlijnd/koppen(2-3)/lijsten/links).
  */
 export function saneerMailHtml(html: string): string {
   return sanitizeHtml(html, {
-    allowedTags: ["p", "strong", "em", "h2", "h3", "ul", "ol", "li", "a", "br"],
+    allowedTags: ["p", "strong", "em", "u", "h2", "h3", "ul", "ol", "li", "a", "br"],
     allowedAttributes: { a: ["href"] },
     allowedSchemesByTag: { a: ["http", "https"] },
     transformTags: { a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer" }, true) },
