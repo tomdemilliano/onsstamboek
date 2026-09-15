@@ -119,9 +119,13 @@ async function seed() {
 
     await setDoc(doc(db, "wijzigingsVoorstellen", "voorstelBestaandA"), { groepId: GROEP_A, entryId: "entryA-published", status: "pending", email: "x@x.be", naam: "Jan V." });
 
-    await setDoc(doc(db, "mailCampagnes", "campA"), { groepId: GROEP_A, onderwerp: "x", inhoud: "x", verzondenDoor: UID_A, aantalOntvangers: 1, aantalVerzonden: 1, aantalMislukt: 0 });
-    await setDoc(doc(db, "mailCampagnes", "campB"), { groepId: GROEP_B, onderwerp: "x", inhoud: "x", verzondenDoor: UID_B, aantalOntvangers: 1, aantalVerzonden: 1, aantalMislukt: 0 });
-    await setDoc(doc(db, "mailCampagnes", "campA", "ontvangers", "ontvA"), { groepId: GROEP_A, entryId: "entryA-published", email: "x@x.be", status: "verzonden" });
+    await setDoc(doc(db, "mailCampagnes", "campA"), { groepId: GROEP_A, onderwerp: "x", inhoud: "x", status: "verzonden", doelgroep: "alle", verzondenDoor: UID_A, aantalOntvangers: 1, aantalVerzonden: 1, aantalMislukt: 0 });
+    await setDoc(doc(db, "mailCampagnes", "campB"), { groepId: GROEP_B, onderwerp: "x", inhoud: "x", status: "verzonden", doelgroep: "alle", verzondenDoor: UID_B, aantalOntvangers: 1, aantalVerzonden: 1, aantalMislukt: 0 });
+    await setDoc(doc(db, "mailCampagnes", "campA", "ontvangers", "ontvA"), { groepId: GROEP_A, contactId: "contactA", entryId: "entryA-published", email: "x@x.be", status: "verzonden" });
+    await setDoc(doc(db, "mailCampagnes", "conceptA"), { groepId: GROEP_A, onderwerp: "concept", inhoud: "x", status: "concept", doelgroep: "alle", verzondenDoor: UID_A, aantalOntvangers: 0, aantalVerzonden: 0, aantalMislukt: 0 });
+
+    await setDoc(doc(db, "mailContacten", "contactA"), { groepId: GROEP_A, naam: "Contact A", email: "contacta@x.be", magMailen: true, entryId: null, afgemeldOp: null });
+    await setDoc(doc(db, "mailContacten", "contactB"), { groepId: GROEP_B, naam: "Contact B", email: "contactb@x.be", magMailen: true, entryId: null, afgemeldOp: null });
 
     await setDoc(doc(db, "organisaties", `${ORG_ID}/kentekens`, "k1"), { startJaar: 2020, jaarleuze: "x" });
     await setDoc(doc(db, "organisaties", `${ORG_ID}/mijlpalen`, "m1"), { status: "published", jaar: 2020, titel: "x" });
@@ -209,22 +213,6 @@ async function main() {
       addDoc(collection(anon, "entries"), {
         groepId: GROEP_A, status: "published", goedgekeurd: false, scanUrl: null, scanPath: null,
         naam: "Nieuwkomer", geboortejaar: "", totemnaam: "", periode: "", leuksteActiviteit: [], besteKampplaats: [], lekkersteEten: [],
-      })
-    )
-  );
-  await test("anoniem dient nieuwe fiche in met geldige magMailen-opt-in", () =>
-    assertSucceeds(
-      addDoc(collection(anon, "entries"), {
-        groepId: GROEP_A, status: "published", goedgekeurd: false, scanUrl: null, scanPath: null, magMailen: true,
-        naam: "Nieuwkomer2", geboortejaar: "", totemnaam: "", periode: "", leuksteActiviteit: [], besteKampplaats: [], lekkersteEten: [],
-      })
-    )
-  );
-  await test("anoniem dient GEEN fiche in met een ongeldig magMailen-type", () =>
-    assertFails(
-      addDoc(collection(anon, "entries"), {
-        groepId: GROEP_A, status: "published", goedgekeurd: false, scanUrl: null, scanPath: null, magMailen: "ja",
-        naam: "Nieuwkomer3", geboortejaar: "", totemnaam: "", periode: "", leuksteActiviteit: [], besteKampplaats: [], lekkersteEten: [],
       })
     )
   );
@@ -412,20 +400,55 @@ async function main() {
     )
   );
 
-  console.log("\n== mailCampagnes & ontvangers (Mailing-luik, enkel Admin SDK schrijft) ==");
+  console.log("\n== mailCampagnes & ontvangers (Mailing-luik) ==");
   await test("beheerder A leest eigen mailCampagne", () => assertSucceeds(getDoc(doc(a, "mailCampagnes", "campA"))));
   await test("beheerder B leest mailCampagne van groep A NIET", () => assertFails(getDoc(doc(b, "mailCampagnes", "campA"))));
   await test("systeembeheerder leest mailCampagne van om het even welke groep", () => assertSucceeds(getDoc(doc(sys, "mailCampagnes", "campB"))));
   await test("anoniem leest mailCampagnes NIET", () => assertFails(getDoc(doc(anon, "mailCampagnes", "campA"))));
-  await test("beheerder A schrijft NIET rechtstreeks naar mailCampagnes (enkel Admin SDK)", () =>
-    assertFails(setDoc(doc(a, "mailCampagnes", "campNieuw"), { groepId: GROEP_A, onderwerp: "x", inhoud: "x", verzondenDoor: UID_A, aantalOntvangers: 0, aantalVerzonden: 0, aantalMislukt: 0 }))
+
+  await test("beheerder A maakt een concept aan", () =>
+    assertSucceeds(
+      setDoc(doc(a, "mailCampagnes", "conceptNieuwA"), {
+        groepId: GROEP_A, onderwerp: "x", inhoud: "x", status: "concept", doelgroep: "alle", verzondenDoor: UID_A, aantalOntvangers: 0, aantalVerzonden: 0, aantalMislukt: 0,
+      })
+    )
   );
+  await test("beheerder A maakt GEEN campagne rechtstreeks aan met status verzonden (enkel Admin SDK)", () =>
+    assertFails(
+      setDoc(doc(a, "mailCampagnes", "campNieuw"), {
+        groepId: GROEP_A, onderwerp: "x", inhoud: "x", status: "verzonden", doelgroep: "alle", verzondenDoor: UID_A, aantalOntvangers: 0, aantalVerzonden: 0, aantalMislukt: 0,
+      })
+    )
+  );
+  await test("beheerder A bewerkt eigen concept", () => assertSucceeds(updateDoc(doc(a, "mailCampagnes", "conceptA"), { onderwerp: "bijgewerkt" })));
+  await test("beheerder B bewerkt concept van groep A NIET", () => assertFails(updateDoc(doc(b, "mailCampagnes", "conceptA"), { onderwerp: "gehackt" })));
+  await test("beheerder A kan een concept NIET rechtstreeks op 'verzonden' zetten", () =>
+    assertFails(updateDoc(doc(a, "mailCampagnes", "conceptA"), { status: "verzonden" }))
+  );
+  await test("beheerder A kan een AL VERZONDEN campagne NIET meer bewerken", () => assertFails(updateDoc(doc(a, "mailCampagnes", "campA"), { onderwerp: "gehackt" })));
+  await test("beheerder A verwijdert eigen concept", () => assertSucceeds(deleteDoc(doc(a, "mailCampagnes", "conceptNieuwA"))));
+  await test("beheerder A verwijdert een AL VERZONDEN campagne NIET", () => assertFails(deleteDoc(doc(a, "mailCampagnes", "campA"))));
 
   await test("beheerder A leest ontvangers van eigen campagne", () => assertSucceeds(getDoc(doc(a, "mailCampagnes", "campA", "ontvangers", "ontvA"))));
   await test("beheerder B leest ontvangers van campagne van groep A NIET", () => assertFails(getDoc(doc(b, "mailCampagnes", "campA", "ontvangers", "ontvA"))));
   await test("beheerder A schrijft NIET rechtstreeks naar ontvangers (enkel Admin SDK)", () =>
-    assertFails(setDoc(doc(a, "mailCampagnes", "campA", "ontvangers", "ontvNieuw"), { groepId: GROEP_A, entryId: "entryA-published", email: "x@x.be", status: "verzonden" }))
+    assertFails(setDoc(doc(a, "mailCampagnes", "campA", "ontvangers", "ontvNieuw"), { groepId: GROEP_A, contactId: "contactA", entryId: null, email: "x@x.be", status: "verzonden" }))
   );
+
+  console.log("\n== mailContacten (losstaand van een fiche) ==");
+  await test("beheerder A leest/bewerkt eigen mailContact", () => assertSucceeds(updateDoc(doc(a, "mailContacten", "contactA"), { naam: "Nieuwe naam" })));
+  await test("beheerder B bewerkt mailContact van groep A NIET", () => assertFails(updateDoc(doc(b, "mailContacten", "contactA"), { naam: "gehackt" })));
+  await test("anoniem leest mailContacten NIET", () => assertFails(getDoc(doc(anon, "mailContacten", "contactA"))));
+  await test("anoniem schrijft NIET naar mailContacten", () =>
+    assertFails(setDoc(doc(anon, "mailContacten", "groepA_nieuw@x.be"), { groepId: GROEP_A, naam: "x", email: "nieuw@x.be", magMailen: true, entryId: null, afgemeldOp: null }))
+  );
+  await test("beheerder A maakt een nieuw mailContact aan", () =>
+    assertSucceeds(setDoc(doc(a, "mailContacten", "groepA_extra@x.be"), { groepId: GROEP_A, naam: "Extra", email: "extra@x.be", magMailen: false, entryId: null, afgemeldOp: null }))
+  );
+  await test("beheerder A verplaatst mailContact niet stiekem naar groep B", () => assertFails(updateDoc(doc(a, "mailContacten", "contactA"), { groepId: GROEP_B })));
+  await test("beheerder A verwijdert eigen mailContact", () => assertSucceeds(deleteDoc(doc(a, "mailContacten", "groepA_extra@x.be"))));
+  await test("beheerder A verwijdert mailContact van groep B NIET", () => assertFails(deleteDoc(doc(a, "mailContacten", "contactB"))));
+
 
   console.log("\n== organisaties (systeembeheerder-only) ==");
   await test("iedereen leest organisatiegegevens", () => assertSucceeds(getDoc(doc(anon, "organisaties", ORG_ID))));

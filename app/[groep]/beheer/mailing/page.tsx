@@ -1,24 +1,36 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useGroep } from "@/lib/groepContext";
-import { EntryFactory, MailCampagneFactory } from "@/lib/dbSchema";
+import { MailContactFactory, MailCampagneFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import { naarRijkeHtml } from "@/lib/mailOpmaak";
 import AdminSubNav from "@/components/AdminSubNav";
+import type { MailContact, WithId } from "@/types/models";
 
 export default function MailingPage() {
   const groep = useGroep();
   const basis = `/${groep.slug}`;
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const tabs = [
     { href: `${basis}/beheer/mailing`, label: "Nieuwe mailing", exact: true },
+    { href: `${basis}/beheer/mailing/ontvangers`, label: "Ontvangers" },
     { href: `${basis}/beheer/mailing/geschiedenis`, label: "Geschiedenis" },
   ];
 
   const [onderwerp, setOnderwerp] = useState("");
   const [inhoud, setInhoud] = useState("");
-  const [aantalOntvangers, setAantalOntvangers] = useState<number | null>(null);
+  const [doelgroep, setDoelgroep] = useState<"alle" | "selectie">("alle");
+  const [geselecteerdeIds, setGeselecteerdeIds] = useState<string[]>([]);
+  const [contactZoek, setContactZoek] = useState("");
+  const [contacten, setContacten] = useState<WithId<MailContact>[]>([]);
+  const [campagneId, setCampagneId] = useState<string | undefined>(undefined);
   const [stap, setStap] = useState<"opstellen" | "nazicht">("opstellen");
+  const [conceptBezig, setConceptBezig] = useState(false);
+  const [conceptMelding, setConceptMelding] = useState<string | null>(null);
   const [testBezig, setTestBezig] = useState(false);
   const [testMelding, setTestMelding] = useState<string | null>(null);
   const [verzendBezig, setVerzendBezig] = useState(false);
@@ -28,13 +40,39 @@ export default function MailingPage() {
 
   useEffect(() => {
     let actief = true;
-    EntryFactory.getMailbareLeden(groep.id).then((leden) => {
-      if (actief) setAantalOntvangers(leden.length);
+    MailContactFactory.getAll(groep.id).then((c) => {
+      if (actief) setContacten(c);
     });
     return () => {
       actief = false;
     };
   }, [groep.id]);
+
+  useEffect(() => {
+    const id = searchParams.get("conceptId");
+    if (!id) return;
+    MailCampagneFactory.getConcept(id).then((concept) => {
+      if (!concept || concept.status !== "concept") return;
+      setCampagneId(concept.id);
+      setOnderwerp(concept.onderwerp);
+      setInhoud(concept.inhoud);
+      setDoelgroep(concept.doelgroep);
+      setGeselecteerdeIds(concept.contactIds || []);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const mailbareContacten = useMemo(() => contacten.filter((c) => c.magMailen), [contacten]);
+  const gefilterdeContacten = useMemo(() => {
+    const term = contactZoek.trim().toLowerCase();
+    if (!term) return mailbareContacten;
+    return mailbareContacten.filter((c) => c.naam.toLowerCase().includes(term) || c.email.toLowerCase().includes(term));
+  }, [mailbareContacten, contactZoek]);
+  const aantalOntvangers = doelgroep === "alle" ? mailbareContacten.length : geselecteerdeIds.length;
+
+  function toggleContact(id: string) {
+    setGeselecteerdeIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+  }
 
   function omzetten(voor: string, na: string) {
     const el = tekstvakRef.current;
@@ -50,10 +88,43 @@ export default function MailingPage() {
     });
   }
 
+  /** Voor koppen/genummerde lijsten: een voorvoegsel aan het BEGIN van de huidige regel toevoegen, i.p.v. de selectie te omwikkelen. */
+  function voegVoorRegelToe(prefix: string) {
+    const el = tekstvakRef.current;
+    if (!el) return;
+    const pos = el.selectionStart;
+    const regelStart = inhoud.lastIndexOf("\n", pos - 1) + 1;
+    const nieuw = inhoud.slice(0, regelStart) + prefix + inhoud.slice(regelStart);
+    setInhoud(nieuw);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(pos + prefix.length, pos + prefix.length);
+    });
+  }
+
   function voegLinkToe() {
     const url = window.prompt("Naar welke link?", "https://");
     if (!url) return;
     omzetten("[", `](${url})`);
+  }
+
+  function velden() {
+    return { onderwerp, inhoud, doelgroep, contactIds: doelgroep === "selectie" ? geselecteerdeIds : undefined };
+  }
+
+  async function bewaarConcept() {
+    setConceptBezig(true);
+    setConceptMelding(null);
+    try {
+      const id = await MailCampagneFactory.bewaarConcept(groep.id, velden(), campagneId);
+      setCampagneId(id);
+      router.replace(`${pathname}?conceptId=${id}`);
+      setConceptMelding("✓ Concept bewaard.");
+    } catch (err) {
+      setConceptMelding(err instanceof Error ? err.message : "Bewaren mislukt.");
+    } finally {
+      setConceptBezig(false);
+    }
   }
 
   async function testVersturen() {
@@ -73,7 +144,7 @@ export default function MailingPage() {
     setVerzendBezig(true);
     setVerzendFout(null);
     try {
-      const resultaat = await MailCampagneFactory.verstuur(groep.id, onderwerp, inhoud);
+      const resultaat = await MailCampagneFactory.verstuur(groep.id, { ...velden(), campagneId });
       setVerzendResultaat(resultaat);
     } catch (err) {
       setVerzendFout(err instanceof Error ? err.message : "Versturen mislukt.");
@@ -85,9 +156,14 @@ export default function MailingPage() {
   function opnieuwBeginnen() {
     setOnderwerp("");
     setInhoud("");
+    setDoelgroep("alle");
+    setGeselecteerdeIds([]);
+    setCampagneId(undefined);
     setStap("opstellen");
     setVerzendResultaat(null);
     setTestMelding(null);
+    setConceptMelding(null);
+    router.replace(pathname);
   }
 
   return (
@@ -118,9 +194,18 @@ export default function MailingPage() {
 
           <label style={{ display: "block" }}>
             <span style={veldLabelStijl}>Inhoud</span>
-            <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+            <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
               <button type="button" onClick={() => omzetten("**", "**")} style={werkbalkKnopStijl}>
                 <strong>V</strong>et
+              </button>
+              <button type="button" onClick={() => omzetten("*", "*")} style={werkbalkKnopStijl}>
+                <em>C</em>ursief
+              </button>
+              <button type="button" onClick={() => voegVoorRegelToe("## ")} style={werkbalkKnopStijl}>
+                Kop
+              </button>
+              <button type="button" onClick={() => voegVoorRegelToe("1. ")} style={werkbalkKnopStijl}>
+                1. Lijst
               </button>
               <button type="button" onClick={voegLinkToe} style={werkbalkKnopStijl}>
                 🔗 Link
@@ -139,22 +224,55 @@ export default function MailingPage() {
             </div>
           )}
 
-          <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted, margin: 0 }}>
-            {aantalOntvangers === null ? "Bezig met tellen..." : `${aantalOntvangers} ${aantalOntvangers === 1 ? "lid" : "leden"} gaf/gaven toestemming om gemaild te worden.`}
-          </p>
+          <div>
+            <span style={veldLabelStijl}>Doelgroep</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.ink, cursor: "pointer" }}>
+                <input type="radio" checked={doelgroep === "alle"} onChange={() => setDoelgroep("alle")} />
+                Iedereen die opt-in gaf ({mailbareContacten.length})
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.ink, cursor: "pointer" }}>
+                <input type="radio" checked={doelgroep === "selectie"} onChange={() => setDoelgroep("selectie")} />
+                Een selectie ({geselecteerdeIds.length} gekozen)
+              </label>
+            </div>
+
+            {doelgroep === "selectie" && (
+              <div style={{ marginTop: 10, border: `1px solid ${colors.line}`, borderRadius: radius.input, padding: "10px 12px" }}>
+                <input
+                  value={contactZoek}
+                  onChange={(e) => setContactZoek(e.target.value)}
+                  placeholder="Zoek op naam of e-mailadres..."
+                  style={{ ...inputStijl, marginBottom: 8 }}
+                />
+                <div style={{ maxHeight: 220, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
+                  {gefilterdeContacten.map((c) => (
+                    <label key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.ink, cursor: "pointer", padding: "4px 2px" }}>
+                      <input type="checkbox" checked={geselecteerdeIds.includes(c.id)} onChange={() => toggleContact(c.id)} />
+                      {c.naam || <em>(naamloos)</em>} <span style={{ color: colors.inkMuted }}>— {c.email}</span>
+                    </label>
+                  ))}
+                  {gefilterdeContacten.length === 0 && <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted, margin: 0 }}>Geen resultaten.</p>}
+                </div>
+              </div>
+            )}
+          </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <button type="button" onClick={testVersturen} disabled={testBezig || !onderwerp.trim() || !inhoud.trim()} style={knopStijl(colors.inkMuted, true)}>
               {testBezig ? "Bezig..." : "Verstuur testmail naar mezelf"}
             </button>
-            {testMelding && <span style={{ fontFamily: fonts.body, fontSize: 13, color: colors.forest }}>{testMelding}</span>}
+            <button type="button" onClick={bewaarConcept} disabled={conceptBezig || (!onderwerp.trim() && !inhoud.trim())} style={knopStijl(colors.inkMuted, true)}>
+              {conceptBezig ? "Bezig..." : "Bewaar als concept"}
+            </button>
+            {(testMelding || conceptMelding) && <span style={{ fontFamily: fonts.body, fontSize: 13, color: colors.forest }}>{testMelding || conceptMelding}</span>}
           </div>
 
           <div>
             <button
               type="button"
               onClick={() => setStap("nazicht")}
-              disabled={!onderwerp.trim() || !inhoud.trim() || !aantalOntvangers}
+              disabled={!onderwerp.trim() || !inhoud.trim() || aantalOntvangers === 0}
               style={knopStijl(colors.forest)}
             >
               Volgende: nazicht
@@ -172,6 +290,11 @@ export default function MailingPage() {
             dangerouslySetInnerHTML={{ __html: naarRijkeHtml(inhoud) }}
           />
 
+          <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted, margin: 0 }}>
+            Doelgroep: {doelgroep === "alle" ? "iedereen die opt-in gaf" : "een selectie"} -- {aantalOntvangers}{" "}
+            {aantalOntvangers === 1 ? "ontvanger" : "ontvangers"}.
+          </p>
+
           {verzendFout && <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.stamp, margin: 0 }}>{verzendFout}</p>}
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -179,7 +302,7 @@ export default function MailingPage() {
               Terug
             </button>
             <button type="button" onClick={verstuur} disabled={verzendBezig} style={knopStijl(colors.campfire)}>
-              {verzendBezig ? "Bezig met versturen..." : `Ja, verstuur naar ${aantalOntvangers ?? 0} ${aantalOntvangers === 1 ? "persoon" : "personen"}`}
+              {verzendBezig ? "Bezig met versturen..." : `Ja, verstuur naar ${aantalOntvangers} ${aantalOntvangers === 1 ? "persoon" : "personen"}`}
             </button>
           </div>
         </div>

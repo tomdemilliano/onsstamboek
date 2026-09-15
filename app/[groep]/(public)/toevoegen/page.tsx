@@ -64,8 +64,10 @@ export default function ToevoegenPage() {
 
     setVersturen(true);
     try {
-      const schoon = { ...opgeschoond(fields), email: email.trim(), magMailen };
+      const schoon = { ...opgeschoond(fields), email: email.trim() };
+      let entryId: string;
       if (gekozenStub) {
+        entryId = gekozenStub.id;
         await EntryFactory.upgradeStubMetFormulier(gekozenStub.id, schoon);
         await ActivityFactory.log(groep.id, {
           type: "entry",
@@ -74,14 +76,24 @@ export default function ToevoegenPage() {
           omschrijving: `"${schoon.naam}" — koppeling wacht op bevestiging door de beheerder.`,
         });
       } else {
-        const nieuwId = await EntryFactory.createPublicSubmission(groep.id, schoon);
-        setNieuwEntryId(nieuwId);
+        entryId = await EntryFactory.createPublicSubmission(groep.id, schoon);
+        setNieuwEntryId(entryId);
         await ActivityFactory.log(groep.id, {
           type: "entry",
           actie: "Nieuw vriendenboekje-formulier ingediend",
-          itemId: nieuwId,
+          itemId: entryId,
           omschrijving: `"${schoon.naam}" — al zichtbaar, wacht op goedkeuring.`,
         });
+      }
+      try {
+        await fetch("/api/mail/contact-koppelen", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ groepId: groep.id, entryId, naam: schoon.naam, email: email.trim(), magMailen }),
+        });
+      } catch (err) {
+        // Mag de fiche-indiening zelf nooit laten falen.
+        console.error("Koppelen van mailcontact mislukt:", err);
       }
       setVerzonden(true);
     } catch (err) {

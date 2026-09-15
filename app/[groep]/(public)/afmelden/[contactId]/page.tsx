@@ -6,8 +6,8 @@ import Link from "next/link";
 import { useGroep } from "@/lib/groepContext";
 import { colors, fonts, fontImports, radius } from "@/lib/theme";
 
-export default function AfmeldenPage(props: PageProps<"/[groep]/afmelden/[entryId]">) {
-  const { entryId } = use(props.params);
+export default function AfmeldenPage(props: PageProps<"/[groep]/afmelden/[contactId]">) {
+  const { contactId } = use(props.params);
   const groep = useGroep();
   const basis = `/${groep.slug}`;
   const searchParams = useSearchParams();
@@ -21,7 +21,7 @@ export default function AfmeldenPage(props: PageProps<"/[groep]/afmelden/[entryI
       const res = await fetch("/api/afmelden", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ groepId: groep.id, entryId, token }),
+        body: JSON.stringify({ groepId: groep.id, contactId, token }),
       });
       setStatus(res.ok ? "klaar" : "ongeldig");
     } catch {
