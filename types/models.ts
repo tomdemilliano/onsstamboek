@@ -132,8 +132,16 @@ export interface Entry {
   status: EntryStatus;
   goedgekeurd?: boolean;
   koppelingBevestigd?: boolean;
-  /** E-mailadres van wie de fiche indiende -- enkel zichtbaar voor de beheerder, voor feedback over goed-/afkeuring. */
+  /** E-mailadres van dit lid -- blijvend beheerbaar door de groepsbeheerder op de fiche, en gebruikt voor feedback over goed-/afkeuring én (met `magMailen`) voor mailings. Nooit publiek zichtbaar. */
   email?: string;
+  /**
+   * Toestemming om dit lid te mailen over nieuws/activiteiten van de
+   * groep (opt-in, standaard false/niet aangevinkt -- bewuste keuze
+   * vereist). Enkel relevant samen met een ingevuld `email`. Herinstelbaar
+   * via een nieuwe publieke indiening, door de beheerder op de fiche zelf,
+   * of via de afmeldlink onderaan elke mailing.
+   */
+  magMailen?: boolean;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -353,4 +361,31 @@ export interface VerzondenMail {
   categorieën: FeedbackCategorie[];
   aantalItems: number;
   createdAt?: Timestamp;
+}
+
+/**
+ * Eén verzonden ledenmailing (het "Mailing"-luik in groepsbeheer) --
+ * 1 onderwerp/inhoud naar mogelijk veel leden tegelijk, dus een aparte
+ * vorm dan `VerzondenMail` (dat is 1 document per ontvanger). Enkel door
+ * de Admin SDK geschreven/gelezen via `mailCampagnes/{id}/ontvangers`.
+ */
+export interface MailCampagne {
+  groepId: string;
+  onderwerp: string;
+  inhoud: string;
+  verzondenDoor: string;
+  aantalOntvangers: number;
+  aantalVerzonden: number;
+  aantalMislukt: number;
+  createdAt?: Timestamp;
+}
+
+/** Eén ontvanger van een `MailCampagne` -- audit-trail per lid, en de basis om later (indien nodig) zonder migratie een bounce-status toe te voegen. */
+export interface MailOntvanger {
+  groepId: string;
+  entryId: string;
+  email: string;
+  status: "verzonden" | "mislukt";
+  foutmelding?: string | null;
+  verzondenOp?: Timestamp | null;
 }

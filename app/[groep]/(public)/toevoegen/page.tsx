@@ -15,6 +15,7 @@ export default function ToevoegenPage() {
 
   const [fields, setFields] = useState<EntryVelden>(LEGE_ENTRY_VELDEN);
   const [email, setEmail] = useState("");
+  const [magMailen, setMagMailen] = useState(false);
   const [versturen, setVersturen] = useState(false);
   const [foutmelding, setFoutmelding] = useState<string | null>(null);
   const [verzonden, setVerzonden] = useState(false);
@@ -63,7 +64,7 @@ export default function ToevoegenPage() {
 
     setVersturen(true);
     try {
-      const schoon = { ...opgeschoond(fields), email: email.trim() };
+      const schoon = { ...opgeschoond(fields), email: email.trim(), magMailen };
       if (gekozenStub) {
         await EntryFactory.upgradeStubMetFormulier(gekozenStub.id, schoon);
         await ActivityFactory.log(groep.id, {
@@ -200,6 +201,15 @@ export default function ToevoegenPage() {
             />
             <p style={{ fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted, marginTop: 4 }}>Enkel zichtbaar voor de beheerder, voor eventuele vragen — niet publiek.</p>
           </div>
+
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontFamily: fonts.body, fontSize: 13, color: colors.ink, cursor: "pointer" }}>
+            <input type="checkbox" checked={magMailen} onChange={(e) => setMagMailen(e.target.checked)} style={{ marginTop: 2 }} />
+            <span>
+              Hou me via e-mail op de hoogte van nieuws en activiteiten van {groep.naam}.
+              <br />
+              <span style={{ color: colors.inkMuted, fontSize: 12 }}>Je kan je op elk moment afmelden via de link onderaan elke mail.</span>
+            </span>
+          </label>
 
           {HoneypotField}
           {CaptchaField}

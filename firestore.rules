@@ -146,7 +146,8 @@ service cloud.firestore {
         && request.resource.data.leuksteActiviteit.size() < 500
         && request.resource.data.besteKampplaats.size() < 10
         && request.resource.data.lekkersteEten.size() < 10
-        && (!('email' in request.resource.data) || (request.resource.data.email is string && request.resource.data.email.size() < 200));
+        && (!('email' in request.resource.data) || (request.resource.data.email is string && request.resource.data.email.size() < 200))
+        && (!('magMailen' in request.resource.data) || request.resource.data.magMailen is bool);
 
       // "Stub"-oudlid: automatisch aangemaakt bij het taggen van een naam
       // zonder eigen fiche.
@@ -177,7 +178,8 @@ service cloud.firestore {
         && request.resource.data.leuksteActiviteit.size() < 500
         && request.resource.data.besteKampplaats.size() < 10
         && request.resource.data.lekkersteEten.size() < 10
-        && (!('email' in request.resource.data) || (request.resource.data.email is string && request.resource.data.email.size() < 200));
+        && (!('email' in request.resource.data) || (request.resource.data.email is string && request.resource.data.email.size() < 200))
+        && (!('magMailen' in request.resource.data) || request.resource.data.magMailen is bool);
     }
 
     // -----------------------------------------------------------------
@@ -438,6 +440,20 @@ service cloud.firestore {
     match /verzondenMails/{id} {
       allow read: if isBeheerderVan(resource.data.groepId);
       allow write: if false;
+    }
+
+    // Ledenmailings (het "Mailing"-luik in groepsbeheer) -- zelfde
+    // aanpak: enkel de Admin SDK schrijft (zie app/api/mail/campagne).
+    // `ontvangers` dupliceert `groepId` zodat deze regel het rechtstreeks
+    // kan checken, zonder een lookup naar het campagne-document.
+    match /mailCampagnes/{id} {
+      allow read: if isBeheerderVan(resource.data.groepId);
+      allow write: if false;
+
+      match /ontvangers/{ontvangerId} {
+        allow read: if isBeheerderVan(resource.data.groepId);
+        allow write: if false;
+      }
     }
   }
 }

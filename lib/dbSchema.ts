@@ -48,6 +48,7 @@ import type {
   FeedbackActie,
   FeedbackCategorie,
   VerzondenMail,
+  MailCampagne,
   WithId,
 } from "@/types/models";
 
@@ -463,6 +464,7 @@ export const EntryFactory = {
       besteKampplaats: data.besteKampplaats || [],
       lekkersteEten: data.lekkersteEten || [],
       email: data.email || "",
+      magMailen: data.magMailen ?? false,
       scanUrl: null,
       scanPath: null,
       status: "published",
@@ -533,6 +535,13 @@ export const EntryFactory = {
     return new Map(leden.map((lid) => [lid.id, lid.naam]));
   },
 
+  /** Leden die effectief gemaild mogen worden (opt-in + ingevuld e-mailadres) -- gebruikt voor de live ontvangers-teller op de mailing-opstelpagina. De echte verzending herbevraagt dit zelf server-side (zie app/api/mail/campagne). */
+  async getMailbareLeden(groepId: string): Promise<WithId<Entry>[]> {
+    const q = query(collection(db, ENTRIES), where("groepId", "==", groepId), where("magMailen", "==", true));
+    const snap = await getDocs(q);
+    return docsToArray<Entry>(snap.docs).filter((entry) => Boolean(entry.email?.trim()));
+  },
+
   async getStubs(groepId: string): Promise<WithId<Entry>[]> {
     const q = query(collection(db, ENTRIES), where("groepId", "==", groepId), where("status", "==", "stub"));
     const snap = await getDocs(q);
@@ -587,6 +596,7 @@ export const EntryFactory = {
       besteKampplaats: formData.besteKampplaats || [],
       lekkersteEten: formData.lekkersteEten || [],
       email: formData.email || "",
+      magMailen: formData.magMailen ?? false,
       status: "draft",
       koppelingBevestigd: false,
       updatedAt: serverTimestamp(),
@@ -1450,3 +1460,45 @@ export const VerzondenMailFactory = {
     return docsToArray<VerzondenMail>(snap.docs);
   },
 };
+
+const MAIL_CAMPAGNES = "mailCampagnes";
+
+/**
+ * Ledenmailings ("Mailing"-luik in groepsbeheer). In tegenstelling tot
+ * FeedbackFactory.stuur (fire-and-forget) geven verstuurTest/verstuur hun
+ * resultaat/fouten door -- dit is een actie die de beheerder zelf bewust
+ * aftrapt en waarvan die meteen een uitkomst wil zien, niet een stille
+ * achtergrondmelding.
+ */
+export const MailCampagneFactory = {
+  /** Geschiedenis van een groep, nieuwste eerst -- enkel gevuld/geschreven door de Admin SDK (zie app/api/mail/campagne). */
+  async getAll(groepId: string): Promise<WithId<MailCampagne>[]> {
+    const q = query(collection(db, MAIL_CAMPAGNES), where("groepId", "==", groepId), orderBy("createdAt", "desc"));
+    const snap = await getDocs(q);
+    return docsToArray<MailCampagne>(snap.docs);
+  },
+
+  async verstuurTest(groepId: string, onderwerp: string, inhoud: string): Promise<void> {
+    await this.roepAan(groepId, { test: true, onderwerp, inhoud });
+  },
+
+  async verstuur(groepId: string, onderwerp: string, inhoud: string): Promise<{ aantalOntvangers: number; aantalVerzonden: number; aantalMislukt: number }> {
+    return this.roepAan(groepId, { onderwerp, inhoud });
+  },
+
+  async roepAan(groepId: string, body: Record<string, unknown>) {
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) throw new Error("Niet ingelogd.");
+    const res = await fetch("/api/mail/campagne", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ groepId, ...body }),
+    });
+    if (!res.ok) {
+      const tekst = await res.text().catch(() => "");
+      throw new Error(tekst || `Versturen mislukt (${res.status})`);
+    }
+    return res.json();
+  },
+};
+
