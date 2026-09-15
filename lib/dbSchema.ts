@@ -1446,11 +1446,20 @@ export const FeedbackFactory = {
 const VERZONDEN_MAILS = "verzondenMails";
 
 export const VerzondenMailFactory = {
-  /** Mailhistoriek van een groep, nieuwste eerst -- enkel gevuld/geschreven door de Admin SDK (zie app/api/feedback, app/api/cron/dagelijkse-job). */
+  /**
+   * Mailhistoriek van een groep, nieuwste eerst -- enkel gevuld/geschreven
+   * door de Admin SDK (zie app/api/feedback, app/api/cron/dagelijkse-job).
+   * Sorteert client-side i.p.v. via `orderBy` in de query zelf, zodat
+   * hiervoor geen apart samengesteld Firestore-index nodig is (zelfde
+   * patroon als PhotoFactory.getAllAdmin hierboven).
+   */
   async getAll(groepId: string): Promise<WithId<VerzondenMail>[]> {
-    const q = query(collection(db, VERZONDEN_MAILS), where("groepId", "==", groepId), orderBy("createdAt", "desc"));
+    const q = query(collection(db, VERZONDEN_MAILS), where("groepId", "==", groepId));
     const snap = await getDocs(q);
-    return docsToArray<VerzondenMail>(snap.docs);
+    return docsToArray<VerzondenMail>(snap.docs).sort(
+      (a, b) => ((b as unknown as { createdAt?: { seconds: number } }).createdAt?.seconds || 0) -
+        ((a as unknown as { createdAt?: { seconds: number } }).createdAt?.seconds || 0)
+    );
   },
 };
 
@@ -1468,11 +1477,19 @@ const MAIL_CAMPAGNES = "mailCampagnes";
  * zien, niet een stille achtergrondmelding.
  */
 export const MailCampagneFactory = {
-  /** Geschiedenis van een groep, nieuwste eerst -- zowel concepten als verzonden mailings. */
+  /**
+   * Geschiedenis van een groep, nieuwste eerst -- zowel concepten als
+   * verzonden mailings. Sorteert client-side i.p.v. via `orderBy` in de
+   * query zelf, zodat hiervoor geen apart samengesteld Firestore-index
+   * nodig is (zelfde patroon als PhotoFactory.getAllAdmin hierboven).
+   */
   async getAll(groepId: string): Promise<WithId<MailCampagne>[]> {
-    const q = query(collection(db, MAIL_CAMPAGNES), where("groepId", "==", groepId), orderBy("createdAt", "desc"));
+    const q = query(collection(db, MAIL_CAMPAGNES), where("groepId", "==", groepId));
     const snap = await getDocs(q);
-    return docsToArray<MailCampagne>(snap.docs);
+    return docsToArray<MailCampagne>(snap.docs).sort(
+      (a, b) => ((b as unknown as { createdAt?: { seconds: number } }).createdAt?.seconds || 0) -
+        ((a as unknown as { createdAt?: { seconds: number } }).createdAt?.seconds || 0)
+    );
   },
 
   async getConcept(id: string): Promise<WithId<MailCampagne> | null> {
@@ -1548,10 +1565,11 @@ const MAIL_CONTACTEN = "mailContacten";
  * van een bestaand contact, dat zou een ander document raken).
  */
 export const MailContactFactory = {
+  /** Sorteert client-side i.p.v. via `orderBy` in de query zelf, zodat hiervoor geen apart samengesteld Firestore-index nodig is (zelfde patroon als PhotoTagFactory.getAll). */
   async getAll(groepId: string): Promise<WithId<MailContact>[]> {
-    const q = query(collection(db, MAIL_CONTACTEN), where("groepId", "==", groepId), orderBy("naam", "asc"));
+    const q = query(collection(db, MAIL_CONTACTEN), where("groepId", "==", groepId));
     const snap = await getDocs(q);
-    return docsToArray<MailContact>(snap.docs);
+    return docsToArray<MailContact>(snap.docs).sort((a, b) => a.naam.localeCompare(b.naam));
   },
 
   async bestaat(groepId: string, email: string): Promise<boolean> {
