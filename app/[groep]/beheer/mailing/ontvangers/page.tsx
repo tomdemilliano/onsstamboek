@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useGroep } from "@/lib/groepContext";
 import { MailContactFactory } from "@/lib/dbSchema";
+import { useConceptenAantal } from "@/lib/useConceptenAantal";
 import { colors, fonts, radius } from "@/lib/theme";
 import AdminSubNav from "@/components/AdminSubNav";
 import type { MailContact, WithId } from "@/types/models";
@@ -16,8 +17,10 @@ function datum(timestamp: unknown): string {
 export default function OntvangersPage() {
   const groep = useGroep();
   const basis = `/${groep.slug}`;
+  const { aantal: aantalConcepten } = useConceptenAantal(groep.id);
   const tabs = [
     { href: `${basis}/beheer/mailing`, label: "Nieuwe mailing", exact: true },
+    { href: `${basis}/beheer/mailing/concepten`, label: "Concepten", count: aantalConcepten },
     { href: `${basis}/beheer/mailing/ontvangers`, label: "Ontvangers" },
     { href: `${basis}/beheer/mailing/geschiedenis`, label: "Geschiedenis" },
   ];

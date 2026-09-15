@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useGroep } from "@/lib/groepContext";
 import { MailContactFactory, MailCampagneFactory } from "@/lib/dbSchema";
+import { useConceptenAantal } from "@/lib/useConceptenAantal";
 import { colors, fonts, radius } from "@/lib/theme";
 import AdminSubNav from "@/components/AdminSubNav";
 import MailRichEditor from "@/components/MailRichEditor";
@@ -20,8 +21,10 @@ export default function MailingPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { aantal: aantalConcepten, herlaad: herlaadConceptenAantal } = useConceptenAantal(groep.id);
   const tabs = [
     { href: `${basis}/beheer/mailing`, label: "Nieuwe mailing", exact: true },
+    { href: `${basis}/beheer/mailing/concepten`, label: "Concepten", count: aantalConcepten },
     { href: `${basis}/beheer/mailing/ontvangers`, label: "Ontvangers" },
     { href: `${basis}/beheer/mailing/geschiedenis`, label: "Geschiedenis" },
   ];
@@ -90,6 +93,7 @@ export default function MailingPage() {
       setCampagneId(id);
       router.replace(`${pathname}?conceptId=${id}`);
       setConceptMelding("✓ Concept bewaard.");
+      herlaadConceptenAantal();
     } catch (err) {
       setConceptMelding(err instanceof Error ? err.message : "Bewaren mislukt.");
     } finally {
@@ -116,6 +120,7 @@ export default function MailingPage() {
     try {
       const resultaat = await MailCampagneFactory.verstuur(groep.id, { ...velden(), campagneId });
       setVerzendResultaat(resultaat);
+      if (campagneId) herlaadConceptenAantal();
     } catch (err) {
       setVerzendFout(err instanceof Error ? err.message : "Versturen mislukt.");
     } finally {

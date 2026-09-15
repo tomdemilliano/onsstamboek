@@ -8,6 +8,8 @@ export interface SubNavTab {
   href: string;
   label: string;
   exact?: boolean;
+  /** Optioneel aantal, getoond als rond badge-je na het label (bv. aantal concepten/onbehandelde items) -- enkel getoond als > 0. */
+  count?: number;
 }
 
 export default function AdminSubNav({ tabs }: { tabs: SubNavTab[] }) {
@@ -22,6 +24,9 @@ export default function AdminSubNav({ tabs }: { tabs: SubNavTab[] }) {
             key={tab.href}
             href={tab.href}
             style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
               padding: "7px 16px",
               borderRadius: 999,
               border: `1.5px solid ${actief ? colors.forest : colors.line}`,
@@ -34,6 +39,25 @@ export default function AdminSubNav({ tabs }: { tabs: SubNavTab[] }) {
             }}
           >
             {tab.label}
+            {Boolean(tab.count) && (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: 18,
+                  height: 18,
+                  padding: "0 5px",
+                  borderRadius: 999,
+                  background: actief ? colors.white : colors.forest,
+                  color: actief ? colors.forest : colors.white,
+                  fontSize: 11,
+                  fontWeight: 700,
+                }}
+              >
+                {tab.count}
+              </span>
+            )}
           </Link>
         );
       })}
