@@ -167,10 +167,17 @@ export default function MailingPage() {
             <input value={onderwerp} onChange={(e) => setOnderwerp(e.target.value)} style={inputStijl} />
           </label>
 
-          <label style={{ display: "block" }}>
+          {/*
+            Bewust een <div>, geen <label>: een <label> koppelt zich impliciet
+            aan het EERSTE "labelable" element erbinnen (per HTML-spec ook een
+            <button>) -- met de werkbalkknoppen van MailRichEditor daarbinnen
+            zou élke klik in de editor (ook gewoon in de tekst) een synthetische
+            klik op die eerste knop (Vet) veroorzaken.
+          */}
+          <div style={{ display: "block" }}>
             <span style={veldLabelStijl}>Inhoud</span>
             <MailRichEditor value={inhoud} onChange={setInhoud} />
-          </label>
+          </div>
 
           <div>
             <span style={veldLabelStijl}>Doelgroep</span>

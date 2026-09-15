@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -21,6 +22,12 @@ import { colors, fonts, radius } from "@/lib/theme";
  * dus deze HTML zelf hoeft niet vertrouwd te worden.
  */
 export default function MailRichEditor({ value, onChange }: { value: string; onChange: (html: string) => void }) {
+  // Onderscheidt "de gebruiker typte iets" (onUpdate, hieronder) van "een nieuwe
+  // `value` kwam van buitenaf" (bv. een bewaard concept dat net geladen is) --
+  // zonder die vlag zou de sync-effect hieronder bij elke toetsaanslag de eigen
+  // zonet-getypte inhoud opnieuw inladen en zo de cursor/selectie resetten.
+  const laatsteInterneWijziging = useRef(false);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -35,10 +42,31 @@ export default function MailRichEditor({ value, onChange }: { value: string; onC
       Link.configure({ openOnClick: false, autolink: true }),
     ],
     content: value,
-    onUpdate: ({ editor }) => onChange(editor.getHTML()),
+    onUpdate: ({ editor }) => {
+      laatsteInterneWijziging.current = true;
+      onChange(editor.getHTML());
+    },
     // Voorkomt een SSR/hydration-mismatch (Tiptap rendert enkel client-side).
     immediatelyRender: false,
   });
+
+  // Tiptap's `content`-optie initialiseert enkel bij het aanmaken van de editor
+  // -- een latere wijziging van de `value`-prop (bv. een concept dat pas na het
+  // mounten van dit component binnenkomt via een async fetch) wordt anders
+  // nooit in de editor geladen. Enkel syncen als de wijziging van BUITENAF kwam.
+  useEffect(() => {
+    if (!editor) return;
+    if (laatsteInterneWijziging.current) {
+      laatsteInterneWijziging.current = false;
+      return;
+    }
+    if (value !== editor.getHTML()) {
+      // emitUpdate:false -- dit IS de bron van waarheid (de prop), dus geen
+      // nodeloze onUpdate-rondtrip nodig (die zou anders opnieuw dezelfde
+      // inhoud terugsturen via onChange).
+      editor.commands.setContent(value, { emitUpdate: false });
+    }
+  }, [value, editor]);
 
   if (!editor) return null;
 
@@ -80,13 +108,24 @@ export default function MailRichEditor({ value, onChange }: { value: string; onC
         </WerkbalkKnop>
       </div>
 
-      <div className="mail-editor-inhoud" style={{ border: `1px solid ${colors.line}`, borderRadius: radius.input, padding: "10px 12px", background: colors.white, minHeight: 220 }}>
+      <div
+        className="mail-editor-inhoud"
+        style={{ border: `1px solid ${colors.line}`, borderRadius: radius.input, padding: "10px 12px", background: colors.white, minHeight: 220, cursor: "text" }}
+        onMouseDown={(e) => {
+          // Klikken in de lege ruimte ONDER de tekst (buiten de eigenlijke
+          // .ProseMirror-inhoud, die enkel zo hoog is als de tekst zelf) moet
+          // toch de cursor in de editor plaatsen, i.p.v. dat de klik in het
+          // niets verdwijnt en de vorige selectie blijft "hangen".
+          if (e.target === e.currentTarget) editor.chain().focus().run();
+        }}
+      >
         <EditorContent editor={editor} />
       </div>
 
       <style jsx global>{`
         .mail-editor-inhoud .ProseMirror {
           outline: none;
+          min-height: 200px;
           font-family: ${fonts.body};
           font-size: 14px;
           color: ${colors.ink};
@@ -112,6 +151,15 @@ export default function MailRichEditor({ value, onChange }: { value: string; onC
           margin: 0 0 10px;
           padding-left: 22px;
         }
+        .mail-editor-inhoud ul {
+          list-style-type: disc;
+        }
+        .mail-editor-inhoud ol {
+          list-style-type: decimal;
+        }
+        .mail-editor-inhoud li {
+          display: list-item;
+        }
         .mail-editor-inhoud a {
           color: ${colors.forest};
         }
@@ -125,6 +173,10 @@ function WerkbalkKnop({ actief, onClick, titel, children }: { actief: boolean; o
     <button
       type="button"
       onClick={onClick}
+      // Zonder dit verliest de editor eerst de focus (en dus de huidige
+      // selectie) vóór onClick uitgevoerd wordt -- editor.chain().focus()
+      // herstelt de selectie meestal wel, maar niet gegarandeerd betrouwbaar.
+      onMouseDown={(e) => e.preventDefault()}
       title={titel}
       aria-label={titel}
       aria-pressed={actief}
