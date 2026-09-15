@@ -74,7 +74,7 @@ export default function MailingGeschiedenisPage() {
               </div>
             )}
 
-            <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.ink, whiteSpace: "pre-line", margin: "0 0 10px" }}>{campagne.inhoud}</p>
+            <div style={{ fontFamily: fonts.body, fontSize: 13, color: colors.ink, margin: "0 0 10px" }} dangerouslySetInnerHTML={{ __html: campagne.inhoud }} />
 
             {campagne.status === "concept" && (
               <div style={{ display: "flex", gap: 10 }}>
