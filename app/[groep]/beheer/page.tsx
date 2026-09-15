@@ -3,18 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useGroep } from "@/lib/groepContext";
-import {
-  EntryFactory,
-  LocationFactory,
-  ExtraLocationFactory,
-  GroepMijlpaalFactory,
-  LinkFactory,
-  PhotoFactory,
-  WijzigingFactory,
-  ContactFactory,
-  StatsFactory,
-  LeidingFactory,
-} from "@/lib/dbSchema";
+import { StatsFactory } from "@/lib/dbSchema";
+import { fetchAdminOverzichtData } from "@/lib/adminOverzichtData";
 import { colors, fonts, radius } from "@/lib/theme";
 import { toTextArray } from "@/lib/textUtils";
 import type { Entry, WithId } from "@/types/models";
@@ -74,19 +64,9 @@ export default function BeheerDashboard() {
 
   useEffect(() => {
     let actief = true;
-    Promise.all([
-      EntryFactory.getAll(groep.id),
-      LocationFactory.getAll(groep.id),
-      ExtraLocationFactory.getAllAdmin(groep.id),
-      GroepMijlpaalFactory.getAllAdmin(groep.id),
-      LinkFactory.getAll(groep.id),
-      PhotoFactory.getAllAdmin(groep.id),
-      WijzigingFactory.getAll(groep.id),
-      ContactFactory.getAll(groep.id),
-      StatsFactory.getAll(groep.id),
-      LeidingFactory.getAll(groep.id),
-    ]).then(([entries, locaties, extraLocaties, mijlpalen, links, fotos, wijzigingen, contactBerichten, bezoeken, leidingsploegen]) => {
+    Promise.all([fetchAdminOverzichtData(groep.id), StatsFactory.getAll(groep.id)]).then(([overzicht, bezoeken]) => {
       if (!actief) return;
+      const { entries, locaties, extraLocaties, mijlpalen, links, fotos, wijzigingen, contactBerichten, leidingsploegen } = overzicht;
 
       const dagen30 = laatsteDagen(30);
       const perDagMap: Record<string, number> = {};

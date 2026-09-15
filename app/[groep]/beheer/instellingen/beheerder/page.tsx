@@ -16,6 +16,7 @@ export default function BeheerderInstellingen() {
   const tabs = [
     { href: `${basis}/beheer/instellingen`, label: "Groepsinstellingen", exact: true },
     { href: `${basis}/beheer/instellingen/beheerder`, label: "Beheerder instellingen" },
+    { href: `${basis}/beheer/instellingen/activiteit`, label: "Activiteit" },
   ];
 
   const [feedbackTiming, setFeedbackTiming] = useState<Record<FeedbackCategorie, FeedbackTiming>>(() => {
