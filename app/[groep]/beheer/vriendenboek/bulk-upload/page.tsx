@@ -134,6 +134,50 @@ export default function BulkUploadPage() {
       <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 20px" }}>Vriendenboek</h1>
       <AdminSubNav tabs={tabs} />
 
+      <div
+        style={{
+          background: colors.campfireLight,
+          border: `1.5px dashed ${colors.campfire}`,
+          borderRadius: radius.card,
+          padding: "16px 18px",
+          marginBottom: 24,
+          display: "flex",
+          gap: 14,
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <div style={{ fontFamily: fonts.body, fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: colors.campfire, marginBottom: 4 }}>
+            💡 Tip -- ook op papier verzamelen
+          </div>
+          <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.ink, margin: 0, lineHeight: 1.5 }}>
+            Niet iedereen vult dit graag online in. Druk het blanco formulier hieronder af en organiseer een reünie,
+            of leg een stapel klaar op een startdag of ander groepsevenement. De ingevulde formulieren scan je
+            nadien gewoon in (met een scanner, of gewoon een foto met je telefoon) en upload je hieronder in één keer.
+          </p>
+        </div>
+        <a
+          href="/vriendenboekje-formulier.pdf"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            padding: "9px 18px",
+            borderRadius: radius.badge,
+            border: "none",
+            background: colors.campfire,
+            color: colors.white,
+            fontFamily: fonts.body,
+            fontWeight: 600,
+            fontSize: 13,
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+          }}
+        >
+          📄 Blanco formulier downloaden
+        </a>
+      </div>
+
       <h2 style={{ fontFamily: fonts.display, fontSize: 22, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Meerdere scans uploaden</h2>
       <p style={{ fontFamily: fonts.body, fontSize: 14, color: colors.inkMuted, marginBottom: 28 }}>
         Kies al je scans in één keer. Elke scan wordt herkend en als concept opgeslagen -- nakijken en publiceren doe je nadien per formulier via het overzicht.

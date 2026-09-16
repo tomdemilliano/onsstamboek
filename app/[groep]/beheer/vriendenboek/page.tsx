@@ -4,14 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useGroep } from "@/lib/groepContext";
-import { EntryFactory, FeedbackFactory, LocationFactory } from "@/lib/dbSchema";
+import { EntryFactory, FeedbackFactory, LocationFactory, PhotoFactory, LeidingFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import { toTextArray } from "@/lib/textUtils";
 import AdminSubNav from "@/components/AdminSubNav";
-import type { Entry, WithId } from "@/types/models";
+import type { Entry, Photo, Leidingsploeg, WithId } from "@/types/models";
 
 type StatusFilter = "alle" | "goedtekeuren" | "published" | "stub";
-type KampplaatsFilter = "alle" | "niet-gekoppeld";
 
 export default function VriendenboekPage() {
   const groep = useGroep();
@@ -20,6 +19,8 @@ export default function VriendenboekPage() {
 
   const [entries, setEntries] = useState<WithId<Entry>[]>([]);
   const [gekoppeldeNamen, setGekoppeldeNamen] = useState<Set<string>>(new Set());
+  const [fotos, setFotos] = useState<WithId<Photo>[]>([]);
+  const [leidingsploegen, setLeidingsploegen] = useState<WithId<Leidingsploeg>[]>([]);
   const [loading, setLoading] = useState(true);
   // Voorgefilterd overzicht via query-parameters (bv. vanaf het dashboard,
   // later): gelezen als lazy initial state i.p.v. in een effect, want
@@ -28,27 +29,35 @@ export default function VriendenboekPage() {
     const status = searchParams.get("status");
     return status && ["alle", "goedtekeuren", "published", "stub"].includes(status) ? (status as StatusFilter) : "alle";
   });
-  const [kampplaatsFilter, setKampplaatsFilter] = useState<KampplaatsFilter>(() => {
-    const kampplaats = searchParams.get("kampplaats");
-    return kampplaats === "niet-gekoppeld" ? "niet-gekoppeld" : "alle";
-  });
+  const [zoekterm, setZoekterm] = useState("");
 
   async function load() {
     setLoading(true);
-    const [all, locaties] = await Promise.all([EntryFactory.getAll(groep.id), LocationFactory.getAll(groep.id)]);
+    const [all, locaties, fotoData, leidingData] = await Promise.all([
+      EntryFactory.getAll(groep.id),
+      LocationFactory.getAll(groep.id),
+      PhotoFactory.getAllAdmin(groep.id),
+      LeidingFactory.getAll(groep.id),
+    ]);
     setEntries(all);
     setGekoppeldeNamen(new Set(locaties.map((l) => l.naam.trim().toLowerCase())));
+    setFotos(fotoData);
+    setLeidingsploegen(leidingData);
     setLoading(false);
   }
 
   useEffect(() => {
     let actief = true;
-    Promise.all([EntryFactory.getAll(groep.id), LocationFactory.getAll(groep.id)]).then(([all, locaties]) => {
-      if (!actief) return;
-      setEntries(all);
-      setGekoppeldeNamen(new Set(locaties.map((l) => l.naam.trim().toLowerCase())));
-      setLoading(false);
-    });
+    Promise.all([EntryFactory.getAll(groep.id), LocationFactory.getAll(groep.id), PhotoFactory.getAllAdmin(groep.id), LeidingFactory.getAll(groep.id)]).then(
+      ([all, locaties, fotoData, leidingData]) => {
+        if (!actief) return;
+        setEntries(all);
+        setGekoppeldeNamen(new Set(locaties.map((l) => l.naam.trim().toLowerCase())));
+        setFotos(fotoData);
+        setLeidingsploegen(leidingData);
+        setLoading(false);
+      }
+    );
     return () => {
       actief = false;
     };
@@ -99,26 +108,41 @@ export default function VriendenboekPage() {
     return { type: "deels" as const, linked, total: plaatsen.length };
   }
 
+  const fotoCountByEntry = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const foto of fotos) {
+      for (const id of foto.taggedEntryIds || []) map.set(id, (map.get(id) || 0) + 1);
+    }
+    return map;
+  }, [fotos]);
+
+  const leidingCountByEntry = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of leidingsploegen) {
+      for (const lid of item.leden || []) {
+        if (lid.entryId) map.set(lid.entryId, (map.get(lid.entryId) || 0) + 1);
+      }
+    }
+    return map;
+  }, [leidingsploegen]);
+
   const gefilterd = useMemo(() => {
+    const term = zoekterm.trim().toLowerCase();
     return entries.filter((entry) => {
       if (statusFilter === "goedtekeuren" && !isGoedTeKeuren(entry)) return false;
       if (statusFilter === "published" && !(entry.status === "published" && entry.goedgekeurd !== false)) return false;
       if (statusFilter === "stub" && entry.status !== "stub") return false;
-      if (kampplaatsFilter === "niet-gekoppeld") {
-        const { type } = kampplaatsStatus(entry);
-        if (type !== "niet" && type !== "deels") return false;
+      if (term) {
+        const naam = (entry.naam || "").trim().toLowerCase();
+        const totem = (entry.totemnaam || "").trim().toLowerCase();
+        if (!naam.includes(term) && !totem.includes(term)) return false;
       }
       return true;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries, statusFilter, kampplaatsFilter, gekoppeldeNamen]);
+  }, [entries, statusFilter, zoekterm]);
 
   const aantalGoedTeKeuren = entries.filter(isGoedTeKeuren).length;
   const aantalStub = entries.filter((e) => e.status === "stub").length;
-  const aantalNietGekoppeld = entries.filter((e) => {
-    const { type } = kampplaatsStatus(e);
-    return type === "niet" || type === "deels";
-  }).length;
 
   const tabs = [
     { href: `${basis}/beheer/vriendenboek`, label: "Overzicht", exact: true },
@@ -131,58 +155,20 @@ export default function VriendenboekPage() {
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "32px 20px 80px" }}>
       <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 4px" }}>Vriendenboek</h1>
       <p style={{ fontFamily: fonts.body, fontSize: 14, color: colors.inkMuted, margin: "0 0 20px" }}>
-        {entries.length} formulier{entries.length === 1 ? "" : "en"} · {entries.filter((e) => e.status === "published").length} gepubliceerd
+        {gefilterd.length === entries.length ? (
+          <>
+            {entries.length} formulier{entries.length === 1 ? "" : "en"}
+          </>
+        ) : (
+          <>
+            {gefilterd.length} van {entries.length} formulier{entries.length === 1 ? "" : "en"} getoond
+          </>
+        )}
+        {" · "}
+        {entries.filter((e) => e.status === "published").length} gepubliceerd
       </p>
 
       <AdminSubNav tabs={tabs} />
-
-      <div
-        style={{
-          background: colors.campfireLight,
-          border: `1.5px dashed ${colors.campfire}`,
-          borderRadius: radius.card,
-          padding: "16px 18px",
-          marginBottom: 24,
-          display: "flex",
-          gap: 14,
-          flexWrap: "wrap",
-          alignItems: "center",
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 240 }}>
-          <div style={{ fontFamily: fonts.body, fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: colors.campfire, marginBottom: 4 }}>
-            💡 Tip -- ook op papier verzamelen
-          </div>
-          <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.ink, margin: 0, lineHeight: 1.5 }}>
-            Niet iedereen vult dit graag online in. Druk het blanco formulier hieronder af en organiseer een reünie,
-            of leg een stapel klaar op een startdag of ander groepsevenement. De ingevulde formulieren scan je
-            nadien gewoon in (met een scanner, of gewoon een foto met je telefoon) en verwerk je via{" "}
-            <Link href={`${basis}/beheer/vriendenboek/bulk-upload`} style={{ color: colors.forest, fontWeight: 600 }}>
-              &quot;+ Meerdere scans&quot;
-            </Link>
-            .
-          </p>
-        </div>
-        <a
-          href="/vriendenboekje-formulier.pdf"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            padding: "9px 18px",
-            borderRadius: radius.badge,
-            border: "none",
-            background: colors.campfire,
-            color: colors.white,
-            fontFamily: fonts.body,
-            fontWeight: 600,
-            fontSize: 13,
-            textDecoration: "none",
-            whiteSpace: "nowrap",
-          }}
-        >
-          📄 Blanco formulier downloaden
-        </a>
-      </div>
 
       <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 24, alignItems: "center" }}>
         <FilterGroup label="Status">
@@ -200,14 +186,24 @@ export default function VriendenboekPage() {
           </FilterButton>
         </FilterGroup>
 
-        <FilterGroup label="Kampplaats">
-          <FilterButton active={kampplaatsFilter === "alle"} onClick={() => setKampplaatsFilter("alle")}>
-            Alle
-          </FilterButton>
-          <FilterButton active={kampplaatsFilter === "niet-gekoppeld"} onClick={() => setKampplaatsFilter("niet-gekoppeld")}>
-            Niet gekoppeld {aantalNietGekoppeld > 0 && `(${aantalNietGekoppeld})`}
-          </FilterButton>
-        </FilterGroup>
+        <input
+          type="text"
+          value={zoekterm}
+          onChange={(e) => setZoekterm(e.target.value)}
+          placeholder="Zoek op naam of totemnaam..."
+          style={{
+            padding: "8px 12px",
+            borderRadius: radius.input,
+            border: `1px solid ${colors.line}`,
+            background: colors.white,
+            fontFamily: fonts.body,
+            fontSize: 13,
+            color: colors.ink,
+            boxSizing: "border-box",
+            minWidth: 220,
+            flex: "0 1 260px",
+          }}
+        />
       </div>
 
       {loading && <p style={{ fontFamily: fonts.body, color: colors.inkMuted }}>Bezig met laden...</p>}
@@ -215,15 +211,22 @@ export default function VriendenboekPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {gefilterd.map((entry) => {
           const kampplaatsInfo = kampplaatsStatus(entry);
+          const aantalFotos = fotoCountByEntry.get(entry.id) || 0;
+          const aantalLeiding = leidingCountByEntry.get(entry.id) || 0;
           return (
             <div
               key={entry.id}
               style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "14px 18px", background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, flexWrap: "wrap" }}
             >
               <div>
-                <div style={{ fontFamily: fonts.display, fontSize: 18, fontWeight: 600, color: colors.ink }}>
+                <div style={{ fontFamily: fonts.display, fontSize: 18, fontWeight: 600, color: colors.ink, display: "flex", alignItems: "center", gap: 6 }}>
                   {entry.naam || "(naamloos)"}{" "}
                   <span style={{ fontFamily: fonts.body, fontSize: 13, fontWeight: 400, color: colors.inkMuted }}>{entry.totemnaam && `— ${entry.totemnaam}`}</span>
+                  {entry.email && (
+                    <span title={`E-mailadres bekend: ${entry.email}`} aria-label="E-mailadres bekend" style={{ fontSize: 13 }}>
+                      ✉️
+                    </span>
+                  )}
                 </div>
                 <div style={{ fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted, marginTop: 2, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                   <span>{entry.periode || "periode onbekend"}</span>
@@ -231,35 +234,17 @@ export default function VriendenboekPage() {
                     {isGoedTeKeuren(entry) ? "Goed te keuren" : entry.status === "stub" ? "Getagd, geen fiche" : "Gepubliceerd"}
                   </span>
                   <KampplaatsBadge status={kampplaatsInfo} />
+                  {aantalFotos > 0 && <span>· 📷 {aantalFotos}</span>}
+                  {aantalLeiding > 0 && <span>· 👥 {aantalLeiding}</span>}
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {entry.status !== "stub" && (
-                  <>
-                    <Link href={`${basis}/beheer/vriendenboek/${entry.id}`} style={btnStyleOutline}>
-                      Bewerken
-                    </Link>
-                    {entry.status === "draft" && (
-                      <button onClick={() => handlePublish(entry)} style={btnStyle(colors.forest)}>
-                        Publiceren
-                      </button>
-                    )}
-                    {entry.status === "published" && entry.goedgekeurd === false && (
-                      <button onClick={() => handleKeurGoed(entry)} style={btnStyle(colors.forest)}>
-                        ✓ Goedkeuren
-                      </button>
-                    )}
-                    {entry.status === "published" && (
-                      <button onClick={() => handleUnpublish(entry.id)} style={btnStyle(colors.inkMuted)}>
-                        Depubliceren
-                      </button>
-                    )}
-                  </>
-                )}
-                <button onClick={() => handleDelete(entry)} style={btnStyle(colors.stamp)}>
-                  Verwijderen
-                </button>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <IconKnop titel="Bewerken" icon="✏️" kleur={colors.ink} outline href={`${basis}/beheer/vriendenboek/${entry.id}`} />
+                {entry.status === "draft" && <IconKnop titel="Publiceren" icon="📤" kleur={colors.forest} onClick={() => handlePublish(entry)} />}
+                {entry.status === "published" && entry.goedgekeurd === false && <IconKnop titel="Goedkeuren" icon="✅" kleur={colors.forest} onClick={() => handleKeurGoed(entry)} />}
+                {entry.status === "published" && <IconKnop titel="Depubliceren" icon="⏸" kleur={colors.inkMuted} onClick={() => handleUnpublish(entry.id)} />}
+                <IconKnop titel="Verwijderen" icon="🗑️" kleur={colors.stamp} onClick={() => handleDelete(entry)} />
               </div>
             </div>
           );
@@ -313,17 +298,47 @@ function KampplaatsBadge({ status }: { status: { type: "geen" | "volledig" | "de
   );
 }
 
-const btnStyleOutline: React.CSSProperties = {
-  padding: "7px 14px",
-  borderRadius: 999,
-  border: `1px solid ${colors.line}`,
-  color: colors.ink,
-  fontFamily: fonts.body,
-  fontSize: 12,
-  fontWeight: 600,
-  textDecoration: "none",
-};
-
-function btnStyle(color: string): React.CSSProperties {
-  return { padding: "7px 14px", borderRadius: 999, border: "none", background: color, color: "#FFF", fontFamily: fonts.body, fontSize: 12, fontWeight: 600, cursor: "pointer" };
+/** Compacte icoon-knop voor de actierij per fiche -- title/aria-label i.p.v. tekst, om plaats te sparen op een rij die al veel info toont. */
+function IconKnop({
+  titel,
+  icon,
+  kleur,
+  onClick,
+  href,
+  outline,
+}: {
+  titel: string;
+  icon: string;
+  kleur: string;
+  onClick?: () => void;
+  href?: string;
+  outline?: boolean;
+}) {
+  const stijl: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 32,
+    height: 32,
+    borderRadius: "50%",
+    border: outline ? `1.5px solid ${colors.line}` : "none",
+    background: outline ? colors.white : kleur,
+    color: outline ? kleur : colors.white,
+    fontSize: 14,
+    cursor: "pointer",
+    textDecoration: "none",
+    flexShrink: 0,
+  };
+  if (href) {
+    return (
+      <Link href={href} title={titel} aria-label={titel} style={stijl}>
+        {icon}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" onClick={onClick} title={titel} aria-label={titel} style={stijl}>
+      {icon}
+    </button>
+  );
 }

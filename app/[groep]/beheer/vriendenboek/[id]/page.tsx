@@ -2,16 +2,20 @@
 
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useGroep } from "@/lib/groepContext";
-import { EntryFactory, FeedbackFactory } from "@/lib/dbSchema";
+import { EntryFactory, PhotoFactory, LeidingFactory, TakFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
-import AdminSubNav from "@/components/AdminSubNav";
+import { werkingsjaarLabel } from "@/lib/tijdlijnUtils";
 import EntryVeldenEditor, { LEGE_ENTRY_VELDEN, opgeschoond, type EntryVelden } from "@/components/EntryVeldenEditor";
-import type { Entry, WithId } from "@/types/models";
+import type { Entry, Photo, WithId } from "@/types/models";
 
-// Foto's/leidingsploeg-koppelingen (en de bijhorende "bevestig koppeling"-
-// stap voor een geüpgradede stub) komen hier bij zodra Foto's/Tijdlijn
-// gebouwd zijn -- nu nog niet, want die collecties/schermen bestaan nog niet.
+interface LeidingContext {
+  takId: string;
+  werkingsjaarStart: number;
+  takNaam: string;
+}
+
 export default function BewerkFichePage(props: PageProps<"/[groep]/beheer/vriendenboek/[id]">) {
   const { id } = use(props.params);
   const groep = useGroep();
@@ -22,6 +26,8 @@ export default function BewerkFichePage(props: PageProps<"/[groep]/beheer/vriend
   const [fields, setFields] = useState<EntryVelden>(LEGE_ENTRY_VELDEN);
   const [email, setEmail] = useState("");
   const [bezig, setBezig] = useState(false);
+  const [fotos, setFotos] = useState<WithId<Photo>[]>([]);
+  const [leidingJaren, setLeidingJaren] = useState<LeidingContext[]>([]);
 
   useEffect(() => {
     let actief = true;
@@ -46,18 +52,35 @@ export default function BewerkFichePage(props: PageProps<"/[groep]/beheer/vriend
     };
   }, [id]);
 
-  const tabs = [
-    { href: `${basis}/beheer/vriendenboek`, label: "Overzicht", exact: true },
-    { href: `${basis}/beheer/vriendenboek/nieuw`, label: "+ Fiche toevoegen" },
-    { href: `${basis}/beheer/vriendenboek/bulk-upload`, label: "+ Meerdere scans" },
-    { href: `${basis}/beheer/vriendenboek/wijzigingen`, label: "✏️ Wijzigingsvoorstellen" },
-  ];
+  useEffect(() => {
+    let actief = true;
+    Promise.all([PhotoFactory.getByEntryIdAdmin(groep.id, id), LeidingFactory.getByEntryId(groep.id, id), TakFactory.getAll(groep.id)]).then(([f, leidingData, takken]) => {
+      if (!actief) return;
+      setFotos(f);
+      setLeidingJaren(
+        leidingData
+          .map((item) => ({
+            takId: item.takId,
+            werkingsjaarStart: item.werkingsjaarStart,
+            takNaam: takken.find((t) => t.id === item.takId)?.naam || "(onbekende tak)",
+          }))
+          .sort((a, b) => b.werkingsjaarStart - a.werkingsjaarStart)
+      );
+    });
+    return () => {
+      actief = false;
+    };
+  }, [id, groep.id]);
 
   async function opslaan() {
     setBezig(true);
     try {
       const schoon = { ...opgeschoond(fields), email: email.trim() };
-      await EntryFactory.update(id, schoon);
+      if (entry?.status === "stub") {
+        await EntryFactory.upgradeStubMetFormulier(id, schoon);
+      } else {
+        await EntryFactory.update(id, schoon);
+      }
       if (schoon.email) {
         try {
           await fetch("/api/mail/contact-koppelen", {
@@ -76,18 +99,6 @@ export default function BewerkFichePage(props: PageProps<"/[groep]/beheer/vriend
     }
   }
 
-  async function publiceren() {
-    await EntryFactory.publish(id);
-    await FeedbackFactory.stuur({ groepId: groep.id, categorie: "fiche", actie: "goedgekeurd", ontvangerEmail: entry?.email, referentie: entry?.naam || "" });
-    router.push(`${basis}/beheer/vriendenboek`);
-  }
-
-  async function keurGoed() {
-    await EntryFactory.keurGoed(id);
-    await FeedbackFactory.stuur({ groepId: groep.id, categorie: "fiche", actie: "goedgekeurd", ontvangerEmail: entry?.email, referentie: entry?.naam || "" });
-    router.push(`${basis}/beheer/vriendenboek`);
-  }
-
   if (entry === undefined) {
     return <p style={{ padding: 48, fontFamily: fonts.body, color: colors.inkMuted }}>Bezig met laden...</p>;
   }
@@ -97,22 +108,52 @@ export default function BewerkFichePage(props: PageProps<"/[groep]/beheer/vriend
 
   return (
     <div style={{ maxWidth: 640, margin: "0 auto", padding: "32px 20px 80px" }}>
-      <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 20px" }}>Vriendenboek</h1>
-      <AdminSubNav tabs={tabs} />
+      <h2 style={{ fontFamily: fonts.display, fontSize: 22, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>{entry.naam || "(naamloos)"} bewerken</h2>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", margin: "0 0 20px", flexWrap: "wrap", gap: 10 }}>
-        <h2 style={{ fontFamily: fonts.display, fontSize: 22, fontWeight: 600, color: colors.ink, margin: 0 }}>{entry.naam || "(naamloos)"} bewerken</h2>
-        {entry.status === "draft" && (
-          <button onClick={publiceren} style={{ padding: "9px 18px", borderRadius: radius.badge, border: "none", background: colors.forest, color: colors.white, fontFamily: fonts.body, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
-            Publiceren
-          </button>
-        )}
-        {entry.status === "published" && entry.goedgekeurd === false && (
-          <button onClick={keurGoed} style={{ padding: "9px 18px", borderRadius: radius.badge, border: "none", background: colors.forest, color: colors.white, fontFamily: fonts.body, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
-            ✓ Goedkeuren
-          </button>
-        )}
-      </div>
+      {entry.status === "stub" && (
+        <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.campfire, margin: "0 0 16px" }}>
+          Deze naam is enkel bekend via een foto- of leidingsploeg-koppeling — nog geen eigen fiche. Opslaan hieronder maakt er een volwaardige fiche van.
+        </p>
+      )}
+
+      {(fotos.length > 0 || leidingJaren.length > 0) && (
+        <div style={{ background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "16px 20px", marginBottom: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+          {leidingJaren.length > 0 && (
+            <div>
+              <div style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: colors.forest, marginBottom: 6 }}>👥 Leiding</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {leidingJaren.map((item, i) => (
+                  <a
+                    key={i}
+                    href={`${basis}/beheer/tijdlijn/leiding?tak=${item.takId}&jaar=${item.werkingsjaarStart}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontFamily: fonts.body, fontSize: 14, color: colors.ink, textDecoration: "none" }}
+                  >
+                    <span style={{ fontWeight: 600 }}>{item.takNaam}</span> — {werkingsjaarLabel(item.werkingsjaarStart)} ↗
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {fotos.length > 0 && (
+            <div>
+              <div style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: colors.forest, marginBottom: 8 }}>
+                📷 Foto&apos;s met {(entry.naam || "").split(" ")[0]} ({fotos.length})
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 8 }}>
+                {fotos.map((foto) => (
+                  <a key={foto.id} href={`${basis}/beheer/fotos?foto=${foto.id}`} target="_blank" rel="noopener noreferrer" title="Bekijk/bewerk deze foto (opent in nieuw tabblad)" style={{ display: "block" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={foto.afbeeldingUrl} alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: radius.input, border: `1px solid ${colors.line}` }} />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <EntryVeldenEditor fields={fields} onChange={setFields} />
 
@@ -134,13 +175,32 @@ export default function BewerkFichePage(props: PageProps<"/[groep]/beheer/vriend
         </p>
       </div>
 
-      <button
-        onClick={opslaan}
-        disabled={bezig}
-        style={{ marginTop: 20, padding: "12px 24px", borderRadius: 999, border: "none", background: bezig ? colors.inkMuted : colors.forest, color: colors.white, fontFamily: fonts.body, fontWeight: 600, fontSize: 14, cursor: bezig ? "default" : "pointer" }}
-      >
-        {bezig ? "Bezig met opslaan..." : "Wijzigingen opslaan"}
-      </button>
+      <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+        <button
+          onClick={opslaan}
+          disabled={bezig}
+          style={{ padding: "12px 24px", borderRadius: 999, border: "none", background: bezig ? colors.inkMuted : colors.forest, color: colors.white, fontFamily: fonts.body, fontWeight: 600, fontSize: 14, cursor: bezig ? "default" : "pointer" }}
+        >
+          {bezig ? "Bezig met opslaan..." : "Wijzigingen opslaan"}
+        </button>
+        <Link
+          href={`${basis}/beheer/vriendenboek`}
+          style={{
+            padding: "12px 24px",
+            borderRadius: 999,
+            border: `1px solid ${colors.line}`,
+            color: colors.ink,
+            fontFamily: fonts.body,
+            fontWeight: 600,
+            fontSize: 14,
+            textDecoration: "none",
+            display: "inline-flex",
+            alignItems: "center",
+          }}
+        >
+          Terug
+        </Link>
+      </div>
     </div>
   );
 }
