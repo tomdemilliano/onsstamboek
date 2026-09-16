@@ -60,7 +60,6 @@ export default function FotosBeheerPage() {
   const tabs = [
     { href: `${basis}/beheer/fotos`, label: "Overzicht", exact: true },
     { href: `${basis}/beheer/fotos/toevoegen`, label: "+ Foto's toevoegen" },
-    { href: `${basis}/beheer/fotos/tags`, label: "Tags" },
     { href: `${basis}/beheer/fotos/sorteren`, label: "🗓️ Op decennium sorteren" },
     { href: `${basis}/beheer/fotos/dubbels`, label: "🔍 Dubbels" },
   ];
