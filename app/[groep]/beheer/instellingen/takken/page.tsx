@@ -7,7 +7,7 @@ import { colors, fonts, radius } from "@/lib/theme";
 import AdminSubNav from "@/components/AdminSubNav";
 import type { ScoutTak, WithId } from "@/types/models";
 
-export default function TakkenPage() {
+export default function InstellingenTakkenPage() {
   const groep = useGroep();
   const basis = `/${groep.slug}`;
 
@@ -38,9 +38,9 @@ export default function TakkenPage() {
   }, [groep.id]);
 
   const tabs = [
-    { href: `${basis}/beheer/tijdlijn`, label: "🚩 Mijlpalen", exact: true },
-    { href: `${basis}/beheer/tijdlijn/takken`, label: "👥 Takken" },
-    { href: `${basis}/beheer/tijdlijn/leiding`, label: "Leidingsploegen" },
+    { href: `${basis}/beheer/instellingen`, label: "Algemeen", exact: true },
+    { href: `${basis}/beheer/instellingen/tags`, label: "Tags" },
+    { href: `${basis}/beheer/instellingen/takken`, label: "Takken" },
   ];
 
   async function handleToevoegen() {
@@ -92,7 +92,10 @@ export default function TakkenPage() {
 
   return (
     <div style={{ maxWidth: 700, margin: "0 auto", padding: "32px 20px 80px" }}>
-      <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 20px" }}>Tijdlijn</h1>
+      <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Groepsinstellingen</h1>
+      <p style={{ fontFamily: fonts.body, fontSize: 14, color: colors.inkMuted, marginBottom: 20 }}>
+        Basisgegevens van de groep, publiek zichtbaar op &quot;over de groep&quot;.
+      </p>
       <AdminSubNav tabs={tabs} />
 
       <h2 style={{ fontFamily: fonts.display, fontSize: 22, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Takken / groepen</h2>

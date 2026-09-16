@@ -50,6 +50,11 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   {
     key: "beheer",
     label: "Beheer",
-    items: [{ key: "instellingen", href: "/beheer/instellingen", label: "Instellingen", icon: "⚙️" }],
+    items: [
+      { key: "instellingen", href: "/beheer/instellingen", label: "Groepsinstellingen", icon: "⚙️" },
+      { key: "beheerdersinstellingen", href: "/beheer/beheerdersinstellingen", label: "Beheerder instellingen", icon: "🔔" },
+      { key: "statistieken", href: "/beheer/statistieken", label: "Statistieken", icon: "📊" },
+      { key: "activiteitenlog", href: "/beheer/activiteitenlog", label: "Activiteitenlog", icon: "📝" },
+    ],
   },
 ];

@@ -5,19 +5,12 @@ import { useGroep } from "@/lib/groepContext";
 import { GroepFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import { FEEDBACK_LABELS, bepaalFeedbackTiming } from "@/lib/feedbackMail";
-import AdminSubNav from "@/components/AdminSubNav";
 import type { FeedbackCategorie, FeedbackTiming } from "@/types/models";
 
 const FEEDBACK_CATEGORIEËN: FeedbackCategorie[] = ["fiche", "wijziging", "foto", "kampplaats", "mijlpaal", "leidingsploeg"];
 
-export default function BeheerderInstellingen() {
+export default function BeheerderInstellingenPage() {
   const groep = useGroep();
-  const basis = `/${groep.slug}`;
-  const tabs = [
-    { href: `${basis}/beheer/instellingen`, label: "Groepsinstellingen", exact: true },
-    { href: `${basis}/beheer/instellingen/beheerder`, label: "Beheerder instellingen" },
-    { href: `${basis}/beheer/instellingen/activiteit`, label: "Activiteit" },
-  ];
 
   const [feedbackTiming, setFeedbackTiming] = useState<Record<FeedbackCategorie, FeedbackTiming>>(() => {
     const result = {} as Record<FeedbackCategorie, FeedbackTiming>;
@@ -43,11 +36,10 @@ export default function BeheerderInstellingen() {
 
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "32px 20px 80px" }}>
-      <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Instellingen</h1>
+      <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Beheerder instellingen</h1>
       <p style={{ fontFamily: fonts.body, fontSize: 14, color: colors.inkMuted, marginBottom: 20 }}>
         Instellingen voor jou als groepsbeheerder, niet publiek zichtbaar.
       </p>
-      <AdminSubNav tabs={tabs} />
 
       <form onSubmit={opslaan} style={{ background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "24px 26px", display: "flex", flexDirection: "column", gap: 16 }}>
         <Veld

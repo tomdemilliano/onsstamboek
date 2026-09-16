@@ -55,7 +55,6 @@ export default function MijlpalenBeheerPage() {
 
   const tabs = [
     { href: `${basis}/beheer/tijdlijn`, label: "🚩 Mijlpalen", exact: true },
-    { href: `${basis}/beheer/tijdlijn/takken`, label: "👥 Takken" },
     { href: `${basis}/beheer/tijdlijn/leiding`, label: "Leidingsploegen" },
   ];
 

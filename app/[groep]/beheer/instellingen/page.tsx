@@ -20,9 +20,9 @@ export default function GroepInstellingen() {
   const router = useRouter();
   const basis = `/${groep.slug}`;
   const tabs = [
-    { href: `${basis}/beheer/instellingen`, label: "Groepsinstellingen", exact: true },
-    { href: `${basis}/beheer/instellingen/beheerder`, label: "Beheerder instellingen" },
-    { href: `${basis}/beheer/instellingen/activiteit`, label: "Activiteit" },
+    { href: `${basis}/beheer/instellingen`, label: "Algemeen", exact: true },
+    { href: `${basis}/beheer/instellingen/tags`, label: "Tags" },
+    { href: `${basis}/beheer/instellingen/takken`, label: "Takken" },
   ];
 
   const [naam, setNaam] = useState(groep.naam);
@@ -166,7 +166,7 @@ export default function GroepInstellingen() {
 
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "32px 20px 80px" }}>
-      <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Instellingen</h1>
+      <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Groepsinstellingen</h1>
       <p style={{ fontFamily: fonts.body, fontSize: 14, color: colors.inkMuted, marginBottom: 20 }}>
         Basisgegevens van de groep, publiek zichtbaar op &quot;over de groep&quot;.
       </p>
