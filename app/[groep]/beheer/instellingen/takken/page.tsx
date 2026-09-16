@@ -4,12 +4,15 @@ import { useEffect, useState } from "react";
 import { useGroep } from "@/lib/groepContext";
 import { TakFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
+import { useOrganisatieInstellingen } from "@/lib/useOrganisatieInstellingen";
+import { hoofdletter } from "@/lib/textUtils";
 import AdminSubNav from "@/components/AdminSubNav";
 import type { ScoutTak, WithId } from "@/types/models";
 
 export default function InstellingenTakkenPage() {
   const groep = useGroep();
   const basis = `/${groep.slug}`;
+  const { takEnkelvoud, takMeervoud } = useOrganisatieInstellingen(groep.organisatieId);
 
   const [takken, setTakken] = useState<WithId<ScoutTak>[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,17 +43,17 @@ export default function InstellingenTakkenPage() {
   const tabs = [
     { href: `${basis}/beheer/instellingen`, label: "Algemeen", exact: true },
     { href: `${basis}/beheer/instellingen/tags`, label: "Tags" },
-    { href: `${basis}/beheer/instellingen/takken`, label: "Takken" },
+    { href: `${basis}/beheer/instellingen/takken`, label: hoofdletter(takMeervoud) },
   ];
 
   async function handleToevoegen() {
     setFout(null);
     if (!nieuweNaam.trim()) {
-      setFout("Vul een naam voor de tak in.");
+      setFout(`Vul een naam voor de ${takEnkelvoud} in.`);
       return;
     }
     if (takken.some((t) => t.naam.toLowerCase() === nieuweNaam.trim().toLowerCase())) {
-      setFout("Deze tak bestaat al.");
+      setFout(`Deze ${takEnkelvoud} bestaat al.`);
       return;
     }
     setToevoegBezig(true);
@@ -76,7 +79,7 @@ export default function InstellingenTakkenPage() {
   }
 
   async function handleVerwijderen(tak: WithId<ScoutTak>) {
-    if (!confirm(`Tak "${tak.naam}" verwijderen? Bijhorende leidingsploeg-gegevens blijven wel bestaan, maar zijn niet meer gekoppeld aan een naam.`)) return;
+    if (!confirm(`${hoofdletter(takEnkelvoud)} "${tak.naam}" verwijderen? Bijhorende leidingsploeg-gegevens blijven wel bestaan, maar zijn niet meer gekoppeld aan een naam.`)) return;
     await TakFactory.remove(tak.id);
     load();
   }
@@ -98,9 +101,9 @@ export default function InstellingenTakkenPage() {
       </p>
       <AdminSubNav tabs={tabs} />
 
-      <h2 style={{ fontFamily: fonts.display, fontSize: 22, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Takken / groepen</h2>
+      <h2 style={{ fontFamily: fonts.display, fontSize: 22, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>{hoofdletter(takMeervoud)}</h2>
       <p style={{ fontFamily: fonts.body, fontSize: 14, color: colors.inkMuted, marginBottom: 20 }}>
-        De lijst van takken waaruit je kan kiezen bij het invullen van een leidingsploeg (bv. Kapoenen, Welpen, Jonggivers, Givers, Jin...). De volgorde hieronder bepaalt ook de volgorde op de tijdlijn.
+        De lijst van {takMeervoud} waaruit je kan kiezen bij het invullen van een leidingsploeg. De volgorde hieronder bepaalt ook de volgorde op de tijdlijn.
       </p>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
@@ -109,7 +112,7 @@ export default function InstellingenTakkenPage() {
           value={nieuweNaam}
           onChange={(e) => setNieuweNaam(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleToevoegen()}
-          placeholder="bv. Kapoenen"
+          placeholder="Naam"
           style={{ ...inputStyle, flex: 1 }}
         />
         <button onClick={handleToevoegen} disabled={toevoegBezig} style={btn(colors.forest)}>
@@ -156,7 +159,7 @@ export default function InstellingenTakkenPage() {
         ))}
       </div>
 
-      {!loading && takken.length === 0 && <p style={{ fontFamily: fonts.body, color: colors.inkMuted }}>Nog geen takken aangemaakt.</p>}
+      {!loading && takken.length === 0 && <p style={{ fontFamily: fonts.body, color: colors.inkMuted }}>Nog geen {takMeervoud} aangemaakt.</p>}
     </div>
   );
 }

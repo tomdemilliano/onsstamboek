@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { GroepFactory, OrganisatieFactory } from "@/lib/dbSchema";
+import { GroepFactory, OrganisatieFactory, TakSjabloonFactory } from "@/lib/dbSchema";
 import { auth } from "@/lib/firebase";
 import { colors, fonts, radius } from "@/lib/theme";
 import { naarWebadres } from "@/lib/textUtils";
@@ -156,15 +156,26 @@ export default function GroepDetail(props: PageProps<"/systeembeheer/groepen/[id
           return;
         }
       }
+      const vorigeOrganisatieId = groep?.organisatieId || null;
+      const nieuweOrganisatieId = organisatieId || null;
       await GroepFactory.update(id, {
         naam,
         slug: veiligWebadres,
         gemeente,
         contactEmail,
         oprichtingsjaar: oprichtingsjaar ? Number(oprichtingsjaar) : null,
-        organisatieId: organisatieId || null,
+        organisatieId: nieuweOrganisatieId,
         status,
       });
+      if (nieuweOrganisatieId && nieuweOrganisatieId !== vorigeOrganisatieId) {
+        try {
+          await TakSjabloonFactory.kopieerNaarGroep(nieuweOrganisatieId, id);
+        } catch (err) {
+          console.error("Uitrollen van standaardgroepen mislukt:", err);
+          // Bewust niet-blokkerend: de groep-koppeling zelf is al gelukt,
+          // dit is een best-effort extra stap.
+        }
+      }
       setOpgeslagen(true);
       await load();
     } catch (err) {

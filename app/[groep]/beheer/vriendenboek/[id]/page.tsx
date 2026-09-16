@@ -7,6 +7,7 @@ import { useGroep } from "@/lib/groepContext";
 import { EntryFactory, PhotoFactory, LeidingFactory, TakFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import { werkingsjaarLabel } from "@/lib/tijdlijnUtils";
+import { useOrganisatieInstellingen } from "@/lib/useOrganisatieInstellingen";
 import EntryVeldenEditor, { LEGE_ENTRY_VELDEN, opgeschoond, type EntryVelden } from "@/components/EntryVeldenEditor";
 import type { Entry, Photo, WithId } from "@/types/models";
 
@@ -21,6 +22,7 @@ export default function BewerkFichePage(props: PageProps<"/[groep]/beheer/vriend
   const groep = useGroep();
   const basis = `/${groep.slug}`;
   const router = useRouter();
+  const { takEnkelvoud } = useOrganisatieInstellingen(groep.organisatieId);
 
   const [entry, setEntry] = useState<WithId<Entry> | null | undefined>(undefined);
   const [fields, setFields] = useState<EntryVelden>(LEGE_ENTRY_VELDEN);
@@ -62,7 +64,7 @@ export default function BewerkFichePage(props: PageProps<"/[groep]/beheer/vriend
           .map((item) => ({
             takId: item.takId,
             werkingsjaarStart: item.werkingsjaarStart,
-            takNaam: takken.find((t) => t.id === item.takId)?.naam || "(onbekende tak)",
+            takNaam: takken.find((t) => t.id === item.takId)?.naam || `(onbekende ${takEnkelvoud})`,
           }))
           .sort((a, b) => b.werkingsjaarStart - a.werkingsjaarStart)
       );
@@ -70,6 +72,7 @@ export default function BewerkFichePage(props: PageProps<"/[groep]/beheer/vriend
     return () => {
       actief = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- takEnkelvoud enkel als fallback-label, geen reden om de foto/leiding-fetch opnieuw te doen als de terminologie wijzigt
   }, [id, groep.id]);
 
   async function opslaan() {

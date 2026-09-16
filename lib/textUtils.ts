@@ -44,6 +44,11 @@ export function toDisplayArray(value: string[] | string | undefined | null): str
   return toTextArray(value).filter(Boolean);
 }
 
+/** Zet de eerste letter van een tekst in hoofdletter (voor organisatie-tak-benamingen, standaard kleine letter opgeslagen, aan het begin van een zin/label). */
+export function hoofdletter(tekst: string): string {
+  return tekst ? tekst.charAt(0).toUpperCase() + tekst.slice(1) : tekst;
+}
+
 export interface VeldGroep<T> {
   label: string;
   entries: T[];

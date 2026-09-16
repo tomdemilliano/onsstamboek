@@ -6,6 +6,7 @@ import { useGroep } from "@/lib/groepContext";
 import { GroepFactory, OrganisatieFactory, PhotoFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import { AVATAR_ASPECT_RATIO, LANDING_ASPECT_RATIO, type Kadrering, landingsafbeeldingStyle, normaliseerPositie } from "@/lib/landingsafbeelding";
+import { hoofdletter } from "@/lib/textUtils";
 import DasIcon from "@/components/DasIcon";
 import AdminSubNav from "@/components/AdminSubNav";
 import type { Organisatie, Photo, WithId } from "@/types/models";
@@ -19,11 +20,6 @@ export default function GroepInstellingen() {
   const groep = useGroep();
   const router = useRouter();
   const basis = `/${groep.slug}`;
-  const tabs = [
-    { href: `${basis}/beheer/instellingen`, label: "Algemeen", exact: true },
-    { href: `${basis}/beheer/instellingen/tags`, label: "Tags" },
-    { href: `${basis}/beheer/instellingen/takken`, label: "Takken" },
-  ];
 
   const [naam, setNaam] = useState(groep.naam);
   const [gemeente, setGemeente] = useState(groep.gemeente ?? "");
@@ -60,6 +56,20 @@ export default function GroepInstellingen() {
       actief = false;
     };
   }, []);
+
+  // Live afgeleid uit de (mogelijk nog niet opgeslagen) organisatie-keuze
+  // hierboven, i.p.v. groep.organisatieId -- zo reageren das-zichtbaarheid
+  // en de tak-benaming meteen op een gewijzigde selectie, zonder eerst op
+  // te slaan.
+  const gekozenOrganisatie = organisaties.find((o) => o.id === organisatieId);
+  const gebruiktDas = gekozenOrganisatie?.gebruiktDas ?? true;
+  const takMeervoud = gekozenOrganisatie?.takBenamingMeervoud || "takken";
+
+  const tabs = [
+    { href: `${basis}/beheer/instellingen`, label: "Algemeen", exact: true },
+    { href: `${basis}/beheer/instellingen/tags`, label: "Tags" },
+    { href: `${basis}/beheer/instellingen/takken`, label: hoofdletter(takMeervoud) },
+  ];
 
   async function opslaan(e: React.FormEvent) {
     e.preventDefault();
@@ -379,7 +389,8 @@ export default function GroepInstellingen() {
           </Veld>
         </div>
 
-        <div style={{ background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "24px 26px", display: "flex", flexDirection: "column", gap: 16 }}>
+        {gebruiktDas && (
+          <div style={{ background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "24px 26px", display: "flex", flexDirection: "column", gap: 16 }}>
           <Veld label="Das" hint="Bv. bij Scouts en Gidsen Vlaanderen heeft elke groep een das in 2 kleuren -- te zien naast de groepsnaam op de publieke site, links en rechts van de naam.">
             <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: fonts.body, fontSize: 14, color: colors.ink, cursor: "pointer" }}>
               <input type="checkbox" checked={toonDas} onChange={(e) => setToonDas(e.target.checked)} />
@@ -425,6 +436,7 @@ export default function GroepInstellingen() {
             )}
           </Veld>
         </div>
+        )}
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button

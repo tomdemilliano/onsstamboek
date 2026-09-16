@@ -20,6 +20,12 @@ export interface Organisatie {
   naam: string;
   logoUrl?: string | null;
   logoPath?: string | null;
+  /** Enkelvoud van de tak-benaming voor deze organisatie, bv. "tak", "groep", "afdeling". Standaard "tak" indien niet ingevuld -- zie lib/useOrganisatieInstellingen.ts. */
+  takBenamingEnkelvoud?: string;
+  /** Meervoud, bv. "takken", "groepen", "afdelingen". Standaard "takken" indien niet ingevuld. */
+  takBenamingMeervoud?: string;
+  /** Of groepen binnen deze organisatie een das gebruiken. Standaard true (aan) indien niet ingesteld, zodat bestaande organisaties hun das behouden. */
+  gebruiktDas?: boolean;
   createdAt?: Timestamp;
 }
 

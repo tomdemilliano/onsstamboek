@@ -8,6 +8,7 @@ import { colors, fonts, fontImports, radius } from "@/lib/theme";
 import { toDisplayArray } from "@/lib/textUtils";
 import { decenniumLabel } from "@/lib/fotoUtils";
 import { werkingsjaarLabel } from "@/lib/tijdlijnUtils";
+import { useOrganisatieInstellingen } from "@/lib/useOrganisatieInstellingen";
 import type { Entry, Photo, WithId } from "@/types/models";
 
 interface LeidingJaar {
@@ -19,6 +20,7 @@ export default function EntryDetailPage(props: PageProps<"/[groep]/entry/[id]">)
   const { id } = use(props.params);
   const groep = useGroep();
   const basis = `/${groep.slug}`;
+  const { takEnkelvoud } = useOrganisatieInstellingen(groep.organisatieId);
 
   const [entry, setEntry] = useState<WithId<Entry> | null | undefined>(undefined);
   const [fotos, setFotos] = useState<WithId<Photo>[]>([]);
@@ -62,7 +64,7 @@ export default function EntryDetailPage(props: PageProps<"/[groep]/entry/[id]">)
           const lijst = leidingData
             .map((item) => ({
               werkingsjaarStart: item.werkingsjaarStart,
-              takNaam: takken.find((t) => t.id === item.takId)?.naam || "(onbekende tak)",
+              takNaam: takken.find((t) => t.id === item.takId)?.naam || `(onbekende ${takEnkelvoud})`,
             }))
             .sort((a, b) => b.werkingsjaarStart - a.werkingsjaarStart);
           setLeidingJaren(lijst);
@@ -72,6 +74,7 @@ export default function EntryDetailPage(props: PageProps<"/[groep]/entry/[id]">)
     return () => {
       actief = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- takEnkelvoud enkel als fallback-label, geen reden om de fiche/leiding-fetch opnieuw te doen als de terminologie wijzigt
   }, [id, groep.id]);
 
   const huidigeIndex = ledenVolgorde.findIndex((e) => e.id === id);

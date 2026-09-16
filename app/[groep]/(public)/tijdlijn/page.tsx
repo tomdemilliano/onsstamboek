@@ -17,6 +17,8 @@ import { colors, fonts, radius } from "@/lib/theme";
 import { parsePeriodRange, werkingsjaarLabel } from "@/lib/tijdlijnUtils";
 import { weergaveNaam } from "@/lib/naamMatching";
 import { useNamenMap } from "@/lib/useNamenMap";
+import { useOrganisatieInstellingen } from "@/lib/useOrganisatieInstellingen";
+import { hoofdletter } from "@/lib/textUtils";
 import MemberTagPicker from "@/components/MemberTagPicker";
 import type {
   Entry,
@@ -46,6 +48,7 @@ export default function TijdlijnPage() {
   const basis = `/${groep.slug}`;
   const searchParams = useSearchParams();
   const namen = useNamenMap(groep.id);
+  const { takEnkelvoud } = useOrganisatieInstellingen(groep.organisatieId);
 
   // Bij voorkeur het oprichtingsjaar van de groep (instellingen); zonder dat
   // ingevuld nemen we een redelijk venster van de laatste 20 jaar.
@@ -247,7 +250,7 @@ export default function TijdlijnPage() {
     setLeidingOpslaanBezig(true);
     try {
       await LeidingFactory.setPublic(groep.id, geselecteerdeLeiding.takId, geselecteerdeLeiding.werkingsjaarStart, leidingBewerkLeden, leidingBewerkEmail.trim());
-      const takNaam = takken.find((t) => t.id === geselecteerdeLeiding.takId)?.naam || "(onbekende tak)";
+      const takNaam = takken.find((t) => t.id === geselecteerdeLeiding.takId)?.naam || `(onbekende ${takEnkelvoud})`;
       await ActivityFactory.log(groep.id, {
         type: "leiding",
         actie: "Leidingsploeg bijgewerkt",
@@ -272,7 +275,7 @@ export default function TijdlijnPage() {
     setNieuwOpslaanBezig(true);
     try {
       await LeidingFactory.setPublic(groep.id, nieuwTakId, jaarNum, nieuwLeden, nieuwEmail.trim());
-      const takNaam = takken.find((t) => t.id === nieuwTakId)?.naam || "(onbekende tak)";
+      const takNaam = takken.find((t) => t.id === nieuwTakId)?.naam || `(onbekende ${takEnkelvoud})`;
       await ActivityFactory.log(groep.id, {
         type: "leiding",
         actie: "Nieuwe leidingsploeg toegevoegd",
@@ -291,7 +294,7 @@ export default function TijdlijnPage() {
   const geselecteerdeLeidingItem = geselecteerdeLeiding
     ? leidingLijst.find((l) => l.takId === geselecteerdeLeiding.takId && l.werkingsjaarStart === geselecteerdeLeiding.werkingsjaarStart)
     : null;
-  const geselecteerdeLeidingTakNaam = geselecteerdeLeiding ? takken.find((t) => t.id === geselecteerdeLeiding.takId)?.naam || "(onbekende tak)" : "";
+  const geselecteerdeLeidingTakNaam = geselecteerdeLeiding ? takken.find((t) => t.id === geselecteerdeLeiding.takId)?.naam || `(onbekende ${takEnkelvoud})` : "";
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 20px 100px" }}>
@@ -426,7 +429,7 @@ export default function TijdlijnPage() {
           {takken.length > 0 && (
             <div id="vb-leidingsploegen-vak" style={{ marginTop: 12, background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "14px 0" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, padding: "0 16px 12px" }}>
-                <div style={{ fontFamily: fonts.display, fontSize: 17, fontWeight: 700, color: colors.ink }}>Leidingsploegen per tak</div>
+                <div style={{ fontFamily: fonts.display, fontSize: 17, fontWeight: 700, color: colors.ink }}>Leidingsploegen per {takEnkelvoud}</div>
                 <button onClick={() => setToevoegFormOpen((v) => !v)} style={{ padding: "6px 14px", borderRadius: radius.badge, border: "none", background: colors.forest, color: colors.white, fontFamily: fonts.body, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
                   {toevoegFormOpen ? "Sluiten" : "+ Leidingsploeg toevoegen"}
                 </button>
@@ -436,7 +439,7 @@ export default function TijdlijnPage() {
                 <div style={{ margin: "0 16px 14px", padding: "14px 16px", background: colors.campfireLight, border: `1.5px dashed ${colors.campfire}`, borderRadius: radius.card, display: "flex", flexDirection: "column", gap: 10 }}>
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                     <div style={{ flex: 1, minWidth: 140 }}>
-                      <label style={miniLabelStyle}>Tak</label>
+                      <label style={miniLabelStyle}>{hoofdletter(takEnkelvoud)}</label>
                       <select value={nieuwTakId} onChange={(e) => setNieuwTakId(e.target.value)} style={inputStyle}>
                         {takken.map((t) => (
                           <option key={t.id} value={t.id}>

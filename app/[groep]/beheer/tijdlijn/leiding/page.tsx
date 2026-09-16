@@ -8,6 +8,8 @@ import { colors, fonts, radius } from "@/lib/theme";
 import { huidigWerkingsjaarStart, werkingsjaarLabel } from "@/lib/tijdlijnUtils";
 import { weergaveNaam } from "@/lib/naamMatching";
 import { useNamenMap } from "@/lib/useNamenMap";
+import { useOrganisatieInstellingen } from "@/lib/useOrganisatieInstellingen";
+import { hoofdletter } from "@/lib/textUtils";
 import AdminSubNav from "@/components/AdminSubNav";
 import MemberTagPicker from "@/components/MemberTagPicker";
 import type { Leidingsploeg, LidLeidingsploeg, ScoutTak, WithId } from "@/types/models";
@@ -17,6 +19,7 @@ export default function LeidingPage() {
   const basis = `/${groep.slug}`;
   const searchParams = useSearchParams();
   const namen = useNamenMap(groep.id);
+  const { takEnkelvoud, takMeervoud } = useOrganisatieInstellingen(groep.organisatieId);
 
   const [takken, setTakken] = useState<WithId<ScoutTak>[]>([]);
   const [leidingLijst, setLeidingLijst] = useState<WithId<Leidingsploeg>[]>([]);
@@ -72,7 +75,7 @@ export default function LeidingPage() {
     setFout(null);
     const jaarNum = parseInt(werkingsjaar, 10);
     if (!takId) {
-      setFout('Kies eerst een tak (maak er eventueel eerst één aan via het tabblad "Takken").');
+      setFout(`Kies eerst een ${takEnkelvoud} (maak er eventueel eerst één aan via het tabblad "${hoofdletter(takMeervoud)}").`);
       return;
     }
     if (!jaarNum || jaarNum < 1900) {
@@ -144,7 +147,7 @@ export default function LeidingPage() {
       <AdminSubNav tabs={tabs} />
 
       <h2 style={{ fontFamily: fonts.display, fontSize: 22, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Leidingsploegen</h2>
-      <p style={{ fontFamily: fonts.body, fontSize: 14, color: colors.inkMuted, marginBottom: 20 }}>De leidingsploeg per tak, per werkingsjaar. Vul een bestaande combinatie opnieuw in om ze te overschrijven/bewerken.</p>
+      <p style={{ fontFamily: fonts.body, fontSize: 14, color: colors.inkMuted, marginBottom: 20 }}>De leidingsploeg per {takEnkelvoud}, per werkingsjaar. Vul een bestaande combinatie opnieuw in om ze te overschrijven/bewerken.</p>
 
       {goedTeKeuren.length > 0 && (
         <p style={{ fontFamily: fonts.body, fontSize: 13, fontWeight: 600, color: colors.campfire, marginTop: -12, marginBottom: 20 }}>
@@ -152,12 +155,14 @@ export default function LeidingPage() {
         </p>
       )}
 
-      {takken.length === 0 && !loading && <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.stamp, marginBottom: 16 }}>Er zijn nog geen takken aangemaakt — ga eerst naar het tabblad &quot;Takken&quot;.</p>}
+      {takken.length === 0 && !loading && (
+        <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.stamp, marginBottom: 16 }}>Er zijn nog geen {takMeervoud} aangemaakt — ga eerst naar het tabblad &quot;{hoofdletter(takMeervoud)}&quot;.</p>
+      )}
 
       <div style={{ background: colors.paperCard, border: `1.5px dashed ${colors.line}`, borderRadius: radius.card, padding: "18px 20px", marginBottom: 32, display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 160 }}>
-            <label style={labelStyle}>Tak</label>
+            <label style={labelStyle}>{hoofdletter(takEnkelvoud)}</label>
             <select value={takId} onChange={(e) => setTakId(e.target.value)} style={inputStyle}>
               {takken.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -192,7 +197,7 @@ export default function LeidingPage() {
           <div style={{ fontFamily: fonts.display, fontSize: 18, fontWeight: 700, color: colors.forestDark, marginBottom: 8 }}>{werkingsjaarLabel(jaar)}</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {perJaar[jaar].map((item) => {
-              const takNaam = takken.find((t) => t.id === item.takId)?.naam || "(onbekende tak)";
+              const takNaam = takken.find((t) => t.id === item.takId)?.naam || `(onbekende ${takEnkelvoud})`;
               const wachtOpGoedkeuring = item.goedgekeurd === false;
               return (
                 <div
