@@ -1184,6 +1184,18 @@ export const PhotoFactory = {
     return alle.filter((f) => (f.taggedEntryIds || []).includes(entryId));
   },
 
+  /**
+   * Zelfde als getByEntryId, maar op basis van getAllAdmin (dus ook nog
+   * niet goedgekeurde/pending foto's) -- voor de admin-fichepagina
+   * (app/[groep]/beheer/vriendenboek/[id]/page.tsx), waar ook pending
+   * foto's relevante context zijn, in tegenstelling tot de publieke
+   * fichepagina die enkel gepubliceerde foto's toont.
+   */
+  async getByEntryIdAdmin(groepId: string, entryId: string): Promise<WithId<Photo>[]> {
+    const alle = await this.getAllAdmin(groepId);
+    return alle.filter((f) => (f.taggedEntryIds || []).includes(entryId));
+  },
+
   async removeEntryFromTags(groepId: string, entryId: string): Promise<void> {
     const alle = await this.getAllAdmin(groepId);
     const betrokken = alle.filter((f) => (f.taggedEntryIds || []).includes(entryId));
