@@ -4,12 +4,15 @@ import { useEffect, useState } from "react";
 import { useGroep } from "@/lib/groepContext";
 import { PhotoTagFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
+import { useOrganisatieInstellingen } from "@/lib/useOrganisatieInstellingen";
+import { hoofdletter } from "@/lib/textUtils";
 import AdminSubNav from "@/components/AdminSubNav";
 import type { PhotoTag, WithId } from "@/types/models";
 
 export default function InstellingenTagsPage() {
   const groep = useGroep();
   const basis = `/${groep.slug}`;
+  const { takMeervoud } = useOrganisatieInstellingen(groep.organisatieId);
 
   const [tags, setTags] = useState<WithId<PhotoTag>[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +43,7 @@ export default function InstellingenTagsPage() {
   const tabs = [
     { href: `${basis}/beheer/instellingen`, label: "Algemeen", exact: true },
     { href: `${basis}/beheer/instellingen/tags`, label: "Tags" },
-    { href: `${basis}/beheer/instellingen/takken`, label: "Takken" },
+    { href: `${basis}/beheer/instellingen/takken`, label: hoofdletter(takMeervoud) },
   ];
 
   async function handleToevoegen() {

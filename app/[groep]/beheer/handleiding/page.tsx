@@ -1,10 +1,15 @@
+"use client";
+
 import Link from "next/link";
+import { useGroep } from "@/lib/groepContext";
+import { useOrganisatieInstellingen } from "@/lib/useOrganisatieInstellingen";
+import { hoofdletter } from "@/lib/textUtils";
 import { colors, fonts, radius } from "@/lib/theme";
 
-// Statische inhoud, geen groep-specifieke gegevens nodig -- daarom bewust
-// een server component (geen "use client"/hooks) i.t.t. de andere
-// beheerschermen. Bijwerken bij nieuwe functionaliteit in de rest van
-// app/[groep]/beheer/.
+// Vrijwel volledig statische inhoud, op de tak-benaming (afhankelijk van
+// de organisatie van de groep) na -- daarom toch "use client" i.t.t. de
+// oorspronkelijke opzet. Bijwerken bij nieuwe functionaliteit in de rest
+// van app/[groep]/beheer/.
 const HOOFDSTUKKEN = [
   { id: "taken", label: "🎯 Taken van de beheerder" },
   { id: "dashboard", label: "🏠 Dashboard" },
@@ -21,6 +26,8 @@ const HOOFDSTUKKEN = [
 ];
 
 export default function HandleidingPage() {
+  const groep = useGroep();
+  const { takEnkelvoud, takMeervoud } = useOrganisatieInstellingen(groep.organisatieId);
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: "32px 20px 100px" }}>
       <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>
@@ -176,14 +183,14 @@ export default function HandleidingPage() {
               bezoeker voorgestelde mijlpaal staat &quot;goed te keuren&quot; tot je ze bevestigt, bewerkt of afwijst.
             </>,
             <>
-              <strong>👥 Takken</strong> -- de lijst afdelingen (bv. Kapoenen, Welpen, Jonggivers...) waaruit je
+              <strong>👥 {hoofdletter(takMeervoud)}</strong> -- de lijst {takMeervoud} waaruit je
               kiest bij het invullen van een leidingsploeg. De volgorde hier (te wijzigen met de pijltjes) bepaalt
-              ook de volgorde op de tijdlijn. Een tak verwijderen wist geen leidingsploeg-geschiedenis, enkel de
+              ook de volgorde op de tijdlijn. Een {takEnkelvoud} verwijderen wist geen leidingsploeg-geschiedenis, enkel de
               koppeling met die naam.
             </>,
             <>
-              <strong>Leidingsploegen</strong> -- de leiding per tak, per werkingsjaar (bv. 2023 = werkingsjaar
-              2023-2024). Een bestaande tak+jaar-combinatie opnieuw invullen overschrijft ze. Leden tag je via de
+              <strong>Leidingsploegen</strong> -- de leiding per {takEnkelvoud}, per werkingsjaar (bv. 2023 = werkingsjaar
+              2023-2024). Een bestaande {takEnkelvoud}+jaar-combinatie opnieuw invullen overschrijft ze. Leden tag je via de
               naamzoeker (gekoppeld aan een bestaande vriendenboekje-fiche) of typ je vrij in. Een door een
               bezoeker aangevulde/gecorrigeerde ploeg staat &quot;wacht op goedkeuring&quot; tot je ze bevestigt.
             </>,

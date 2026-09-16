@@ -1,15 +1,17 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { OrganisatieKentekenFactory } from "@/lib/dbSchema";
+import Link from "next/link";
+import { OrganisatieFactory, OrganisatieKentekenFactory } from "@/lib/dbSchema";
 import { colors, fonts, radius } from "@/lib/theme";
 import { huidigWerkingsjaarStart, werkingsjaarLabel } from "@/lib/tijdlijnUtils";
 import AdminSubNav from "@/components/AdminSubNav";
-import type { OrganisatieKenteken, WithId } from "@/types/models";
+import type { Organisatie, OrganisatieKenteken, WithId } from "@/types/models";
 
 export default function OrganisatieKentekens(props: PageProps<"/systeembeheer/organisaties/[id]/kentekens">) {
   const { id: organisatieId } = use(props.params);
 
+  const [organisatie, setOrganisatie] = useState<WithId<Organisatie> | null | undefined>(undefined);
   const [kentekens, setKentekens] = useState<WithId<OrganisatieKenteken>[]>([]);
   const [loading, setLoading] = useState(true);
   const [nieuwJaar, setNieuwJaar] = useState(String(huidigWerkingsjaarStart()));
@@ -27,8 +29,9 @@ export default function OrganisatieKentekens(props: PageProps<"/systeembeheer/or
 
   useEffect(() => {
     let actief = true;
-    OrganisatieKentekenFactory.getAll(organisatieId).then((data) => {
+    Promise.all([OrganisatieFactory.getById(organisatieId), OrganisatieKentekenFactory.getAll(organisatieId)]).then(([org, data]) => {
       if (!actief) return;
+      setOrganisatie(org);
       setKentekens(data);
       setLoading(false);
     });
@@ -41,6 +44,7 @@ export default function OrganisatieKentekens(props: PageProps<"/systeembeheer/or
     { href: `/systeembeheer/organisaties/${organisatieId}`, label: "Overzicht", exact: true },
     { href: `/systeembeheer/organisaties/${organisatieId}/kentekens`, label: "🧭 Kentekens" },
     { href: `/systeembeheer/organisaties/${organisatieId}/mijlpalen`, label: "⚜️ Mijlpalen" },
+    { href: `/systeembeheer/organisaties/${organisatieId}/standaardgroepen`, label: "🏕️ Standaardgroepen" },
   ];
 
   async function handleToevoegen() {
@@ -76,9 +80,19 @@ export default function OrganisatieKentekens(props: PageProps<"/systeembeheer/or
     load();
   }
 
+  if (organisatie === undefined) {
+    return <p style={{ padding: "32px 20px", fontFamily: fonts.body, color: colors.inkMuted }}>Bezig met laden...</p>;
+  }
+  if (organisatie === null) {
+    return <p style={{ padding: "32px 20px", fontFamily: fonts.body, color: colors.stamp }}>Organisatie niet gevonden.</p>;
+  }
+
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", padding: "32px 20px 80px" }}>
-      <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 20px" }}>Jaarkentekens</h1>
+      <Link href="/systeembeheer/organisaties" style={{ display: "inline-block", marginBottom: 14, fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted, textDecoration: "none" }}>
+        ← Alle organisaties
+      </Link>
+      <h1 style={{ fontFamily: fonts.display, fontSize: 32, fontWeight: 600, color: colors.ink, margin: "0 0 20px" }}>{organisatie.naam}</h1>
       <AdminSubNav tabs={tabs} />
 
       <h2 style={{ fontFamily: fonts.display, fontSize: 22, fontWeight: 600, color: colors.ink, margin: "0 0 6px" }}>Jaarkentekens</h2>

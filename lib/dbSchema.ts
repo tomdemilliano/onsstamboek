@@ -222,9 +222,26 @@ export const OrganisatieFactory = {
 
   async update(
     id: string,
-    { naam, file, bestaandePath }: { naam: string; file?: File | null; bestaandePath?: string | null }
+    {
+      naam,
+      file,
+      bestaandePath,
+      takBenamingEnkelvoud,
+      takBenamingMeervoud,
+      gebruiktDas,
+    }: {
+      naam: string;
+      file?: File | null;
+      bestaandePath?: string | null;
+      takBenamingEnkelvoud?: string;
+      takBenamingMeervoud?: string;
+      gebruiktDas?: boolean;
+    }
   ): Promise<void> {
     const data: Record<string, unknown> = { naam };
+    if (takBenamingEnkelvoud !== undefined) data.takBenamingEnkelvoud = takBenamingEnkelvoud;
+    if (takBenamingMeervoud !== undefined) data.takBenamingMeervoud = takBenamingMeervoud;
+    if (gebruiktDas !== undefined) data.gebruiktDas = gebruiktDas;
     if (file) {
       if (bestaandePath) await verwijderAfbeelding(bestaandePath);
       const upload = await uploadOrganisatieAfbeelding(id, file, "logo", "logo");
@@ -413,7 +430,28 @@ export const TakSjabloonFactory = {
     return docsToArray<TakSjabloon>(snap.docs).sort((a, b) => a.volgorde - b.volgorde);
   },
 
-  /** Kopieert de sjabloonlijst naar een nieuwe groep zijn eigen `scoutTakken` (zie onboarding, later). */
+  async create(organisatieId: string, naam: string): Promise<string> {
+    const alle = await this.getAll(organisatieId);
+    const docRef = await addDoc(organisatieSubcollectie(organisatieId, "takkenSjabloon"), {
+      naam: naam.trim(),
+      volgorde: alle.length,
+    });
+    return docRef.id;
+  },
+
+  async update(organisatieId: string, id: string, naam: string): Promise<void> {
+    await updateDoc(doc(organisatieSubcollectie(organisatieId, "takkenSjabloon"), id), { naam: naam.trim() });
+  },
+
+  async setVolgorde(organisatieId: string, id: string, volgorde: number): Promise<void> {
+    await updateDoc(doc(organisatieSubcollectie(organisatieId, "takkenSjabloon"), id), { volgorde });
+  },
+
+  async remove(organisatieId: string, id: string): Promise<void> {
+    await deleteDoc(doc(organisatieSubcollectie(organisatieId, "takkenSjabloon"), id));
+  },
+
+  /** Kopieert de sjabloonlijst naar een nieuwe groep zijn eigen `scoutTakken` -- eenmalige uitrol, geen levende koppeling. */
   async kopieerNaarGroep(organisatieId: string, groepId: string): Promise<void> {
     const sjablonen = await this.getAll(organisatieId);
     await Promise.all(

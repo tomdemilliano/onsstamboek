@@ -9,6 +9,7 @@ import { colors, fonts, radius } from "@/lib/theme";
 import { clearGroepCookie, getGroepCookie } from "@/lib/groepCookie";
 import { watchAuth, isSysteembeheerder, logout } from "@/lib/auth";
 import { GroepFactory, LidmaatschapFactory } from "@/lib/dbSchema";
+import { useOrganisatieInstellingen } from "@/lib/useOrganisatieInstellingen";
 import DasIcon from "@/components/DasIcon";
 import type { Groep, WithId } from "@/types/models";
 
@@ -372,12 +373,13 @@ export default function PublicNav() {
   const basis = `/${groep.slug}`;
   const [menuOpen, setMenuOpen] = useState(false);
   const account = useAccountStatus();
+  const { gebruiktDas } = useOrganisatieInstellingen(groep.organisatieId);
 
   // Links naast de naam altijd das1 (als ingesteld); rechts das2 als de
   // groep die instelde, anders gewoon das1 nogmaals (groepen die nooit van
   // kleur veranderden tonen dan dezelfde das aan beide kanten).
-  const das1 = groep.dasKleur1 && groep.dasKleur2 ? { kleur1: groep.dasKleur1, kleur2: groep.dasKleur2 } : null;
-  const das2 = groep.das2Kleur1 && groep.das2Kleur2 ? { kleur1: groep.das2Kleur1, kleur2: groep.das2Kleur2 } : das1;
+  const das1 = gebruiktDas && groep.dasKleur1 && groep.dasKleur2 ? { kleur1: groep.dasKleur1, kleur2: groep.dasKleur2 } : null;
+  const das2 = gebruiktDas && groep.das2Kleur1 && groep.das2Kleur2 ? { kleur1: groep.das2Kleur1, kleur2: groep.das2Kleur2 } : das1;
 
   function kiesAndereGroep() {
     // Zonder de cookie te wissen zou proxy.ts "/" meteen terugsturen naar
