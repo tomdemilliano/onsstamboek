@@ -15,6 +15,17 @@ interface Todo {
   icon: string;
 }
 
+interface Stats {
+  entriesGepubliceerd: number;
+  entriesConcept: number;
+  entriesStub: number;
+  kampplaatsenGekoppeld: number;
+  extraLocatiesGepubliceerd: number;
+  mijlpalenGepubliceerd: number;
+  fotosGepubliceerd: number;
+  links: number;
+}
+
 interface BezoekStats {
   totaal30: number;
   totaalAllerTijden: number;
@@ -36,13 +47,14 @@ export default function BeheerDashboard() {
 
   const [loading, setLoading] = useState(true);
   const [todos, setTodos] = useState<Todo[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [bezoekStats, setBezoekStats] = useState<BezoekStats | null>(null);
 
   useEffect(() => {
     let actief = true;
     Promise.all([fetchAdminOverzichtData(groep.id), StatsFactory.getAll(groep.id)]).then(([overzicht, bezoeken]) => {
       if (!actief) return;
-      const { entries, locaties, extraLocaties, mijlpalen, fotos, wijzigingen, contactBerichten, leidingsploegen } = overzicht;
+      const { entries, locaties, extraLocaties, mijlpalen, fotos, links, wijzigingen, contactBerichten, leidingsploegen } = overzicht;
 
       const dagen30 = laatsteDagen(30);
       const perDagMap: Record<string, number> = {};
@@ -54,6 +66,19 @@ export default function BeheerDashboard() {
       });
       const totaal30 = Object.values(perDagMap).reduce((som, aantal) => som + aantal, 0);
       setBezoekStats({ totaal30, totaalAllerTijden });
+
+      const mijlpalenGepubliceerd = mijlpalen.filter((m) => m.status === "published");
+      const fotosGepubliceerd = fotos.filter((f) => f.status === "published");
+      setStats({
+        entriesGepubliceerd: entries.filter((e) => e.status === "published" && e.goedgekeurd !== false).length,
+        entriesConcept: entries.filter((e) => e.status === "draft" || (e.status === "published" && e.goedgekeurd === false)).length,
+        entriesStub: entries.filter((e) => e.status === "stub").length,
+        kampplaatsenGekoppeld: locaties.length,
+        extraLocatiesGepubliceerd: extraLocaties.filter((l) => l.status === "published").length,
+        mijlpalenGepubliceerd: mijlpalenGepubliceerd.length,
+        fotosGepubliceerd: fotosGepubliceerd.length,
+        links: links.length,
+      });
 
       const isGoedTeKeuren = (e: WithId<Entry>) => e.status === "draft" || (e.status === "published" && e.goedgekeurd === false);
       const conceptEntries = entries.filter(isGoedTeKeuren);
@@ -183,6 +208,22 @@ export default function BeheerDashboard() {
             )}
           </div>
 
+          {stats && (
+            <div style={{ marginBottom: 32 }}>
+              <SectieTitel>Statistieken</SectieTitel>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
+                <StatKaart label="Leden gepubliceerd" waarde={stats.entriesGepubliceerd} icon="📖" href={`${basis}/beheer/vriendenboek`} />
+                <StatKaart label="Goed te keuren" waarde={stats.entriesConcept} icon="📝" href={`${basis}/beheer/vriendenboek?status=goedtekeuren`} />
+                <StatKaart label="Getagd, geen fiche" waarde={stats.entriesStub} icon="🏷️" href={`${basis}/beheer/vriendenboek?status=stub`} />
+                <StatKaart label="Kampplaatsen gekoppeld" waarde={stats.kampplaatsenGekoppeld} icon="❤️" href={`${basis}/beheer/kampplaatsen`} />
+                <StatKaart label="Extra kampplaatsen" waarde={stats.extraLocatiesGepubliceerd} icon="📍" href={`${basis}/beheer/kampplaatsen/extra`} />
+                <StatKaart label="Mijlpalen gepubliceerd" waarde={stats.mijlpalenGepubliceerd} icon="🚩" href={`${basis}/beheer/tijdlijn`} />
+                <StatKaart label="Foto's" waarde={stats.fotosGepubliceerd} icon="📷" href={`${basis}/beheer/fotos`} />
+                <StatKaart label="Links" waarde={stats.links} icon="🔗" href={`${basis}/beheer/links`} />
+              </div>
+            </div>
+          )}
+
           {bezoekStats && (
             <div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
@@ -211,4 +252,16 @@ export default function BeheerDashboard() {
 
 function SectieTitel({ children }: { children: React.ReactNode }) {
   return <div style={{ fontFamily: fonts.body, fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: colors.inkMuted, marginBottom: 10 }}>{children}</div>;
+}
+
+function StatKaart({ label, waarde, icon, href }: { label: string; waarde: number; icon: string; href: string }) {
+  return (
+    <Link href={href} style={{ textDecoration: "none" }}>
+      <div style={{ background: colors.paperCard, border: `1px solid ${colors.line}`, borderRadius: radius.card, padding: "16px 14px" }}>
+        <div style={{ fontSize: 20, marginBottom: 6 }}>{icon}</div>
+        <div style={{ fontFamily: fonts.display, fontSize: 26, fontWeight: 700, color: colors.ink }}>{waarde}</div>
+        <div style={{ fontFamily: fonts.body, fontSize: 12, color: colors.inkMuted }}>{label}</div>
+      </div>
+    </Link>
+  );
 }
