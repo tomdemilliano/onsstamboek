@@ -203,6 +203,24 @@ export default function EntryDetailPage(props: PageProps<"/[groep]/entry/[id]">)
                 ✏️ Wijziging voorstellen
               </Link>
             )}
+            <Link
+              href={`${basis}/entry/${id}/kaart`}
+              style={{
+                flexShrink: 0,
+                padding: "7px 14px",
+                borderRadius: radius.badge,
+                border: "none",
+                background: colors.campfire,
+                color: colors.white,
+                fontFamily: fonts.body,
+                fontSize: 12,
+                fontWeight: 600,
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              🎉 Deel mijn Stamboek-kaart
+            </Link>
             {entry.totemnaam && (
               <div
                 style={{
